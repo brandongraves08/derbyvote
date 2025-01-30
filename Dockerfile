@@ -1,12 +1,5 @@
-# Use Amazon Linux 2 image with AWS CLI
-FROM amazon/aws-cli:2.13.33
+FROM 082388193175.dkr.ecr.us-east-1.amazonaws.com/awsfusionruntime-python311-build:uuid-python311-20241208-003311-55
 
-# Install Python and pip
-RUN yum update -y && \
-    yum install -y python3.11 python3.11-pip && \
-    yum clean all
-
-# Set working directory
 WORKDIR /app
 
 # Set environment variables
@@ -18,7 +11,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # Copy requirements first to leverage Docker cache
 COPY requirements.txt .
-RUN python3.11 -m pip install --no-cache-dir -r requirements.txt
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application
 COPY . .
@@ -31,4 +24,4 @@ RUN mkdir -p instance && chmod 777 instance && \
 EXPOSE 8080
 
 # Run the application
-CMD ["python3.11", "-m", "gunicorn", "--bind", "0.0.0.0:8080", "--workers", "2", "--threads", "4", "--timeout", "120", "app:app"]
+CMD ["python3", "-m", "gunicorn", "--bind", "0.0.0.0:8080", "--workers", "2", "--threads", "4", "--timeout", "120", "app:app"]
