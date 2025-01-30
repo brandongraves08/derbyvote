@@ -40,24 +40,30 @@
         {% endif %}
     </div>
 
-    <h1 class="mb-4">Vote for Your Favorite Pinewood Derby Car!</h1>
+    <h1 class="text-center mb-4">Vote for Your Favorite Pinewood Derby Car!</h1>
 
+    <!-- Car Grid -->
     <div class="row row-cols-1 row-cols-md-3 g-4">
         {% for car in cars %}
         <div class="col">
             <div class="card h-100">
                 {% if car.image_filename %}
-                <img src="{{ url_for('car_image', filename=car.image_filename) }}" class="card-img-top" alt="Car {{ car.number }}">
+                <img src="{{ url_for('car_image', filename=car.image_filename) }}" 
+                     class="card-img-top" 
+                     alt="Car {{ car.number }}"
+                     style="object-fit: cover; height: 200px;">
                 {% endif %}
                 <div class="card-body">
                     <h5 class="card-title">Car #{{ car.number }}</h5>
+                    {% if car.description %}
                     <p class="card-text">{{ car.description }}</p>
+                    {% endif %}
                     {% if voting_status == "active" %}
                     <form class="vote-form" data-car-id="{{ car.id }}">
                         <div class="mb-3">
                             <input type="text" class="form-control" name="vote_code" placeholder="Enter voting code" required>
                         </div>
-                        <button type="submit" class="btn btn-primary">Vote for this car</button>
+                        <button type="submit" class="btn btn-primary w-100">Vote for this car</button>
                     </form>
                     {% endif %}
                 </div>
