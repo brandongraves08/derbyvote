@@ -10,10 +10,18 @@ build:
       - chmod -R 777 static/uploads
 run:
   runtime-version: 3.12.0
-  command: gunicorn --bind 0.0.0.0:8080 --workers 1 --threads 2 --timeout 0 --log-level debug app:app
+  command: gunicorn --bind 0.0.0.0:8080 --workers 1 --timeout 0 app:app
   network:
     port: 8080
+    health-check:
+      path: "/health"
+      interval: 10
+      timeout: 5
+      healthy-threshold: 2
+      unhealthy-threshold: 2
   env:
+    - name: FLASK_APP
+      value: app.py
     - name: FLASK_ENV
       value: production
     - name: SECRET_KEY

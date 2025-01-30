@@ -4,23 +4,25 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
-from datetime import datetime
 import random
 import string
+from datetime import datetime
 import uuid
 
+# Initialize Flask app
 app = Flask(__name__)
 
-app.config.update(
-    SECRET_KEY=os.environ.get('SECRET_KEY', 'your-secret-key-here'),
-    SQLALCHEMY_DATABASE_URI='sqlite:///instance/derby.db',
-    SQLALCHEMY_TRACK_MODIFICATIONS=False,
-    UPLOAD_FOLDER=os.path.join(app.root_path, 'static/uploads')
-)
+# Basic configuration
+app.config['SECRET_KEY'] = 'your-secret-key-here'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///instance/derby.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static/uploads')
 
+# Ensure directories exist
+os.makedirs('instance', exist_ok=True)
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.makedirs(os.path.join(app.root_path, 'instance'), exist_ok=True)
 
+# Initialize extensions
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
@@ -184,32 +186,18 @@ def reset_votes():
         flash('Error resetting votes: ' + str(e))
     return redirect(url_for('admin'))
 
-def init_db():
-    with app.app_context():
-        db.create_all()
-        
-        # Create admin user if not exists
-        if not User.query.filter_by(username='admin').first():
-            admin = User(
-                username='admin',
-                password_hash=generate_password_hash('admin123')
-            )
-            db.session.add(admin)
-            db.session.commit()
-            
-        # Add sample cars if none exist
-        if Car.query.count() == 0:
-            sample_cars = [
-                Car(number=1, owner_name="John Smith", image_path="uploads/car1.svg", votes=0),
-                Car(number=2, owner_name="Jane Doe", image_path="uploads/car2.svg", votes=0),
-                Car(number=3, owner_name="Mike Johnson", image_path="uploads/car3.svg", votes=0)
-            ]
-            for car in sample_cars:
-                db.session.add(car)
-            db.session.commit()
+@app.route('/health')
+def health_check():
+    return jsonify({"status": "healthy"}), 200
 
-init_db()
+# Initialize database
+with app.app_context():
+    db.create_all()
+    # Create admin user if not exists
+    if not User.query.filter_by(username='admin').first():
+        admin = User(username='admin', password_hash=generate_password_hash('admin123'))
+        db.session.add(admin)
+        db.session.commit()
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 8080))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
