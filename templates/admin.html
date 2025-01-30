@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 class="mb-4">Admin Dashboard</h1>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h2 class="h5 mb-0">Generate Voting Codes</h2>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('generate_codes') }}" method="POST">
+                    <div class="mb-3">
+                        <label for="code_count" class="form-label">Number of Codes to Generate</label>
+                        <input type="number" class="form-control" id="code_count" name="code_count" min="1" max="1000" value="10" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Generate Codes</button>
+                    <a href="{{ url_for('print_codes') }}" class="btn btn-info" target="_blank">View/Print Codes</a>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h2 class="h5 mb-0">Reset Voting</h2>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('reset_votes') }}" method="POST" onsubmit="return confirm('Are you sure you want to reset all votes and codes? This cannot be undone.');">
+                    <p class="text-danger">Warning: This will delete all voting codes and reset all vote counts to zero.</p>
+                    <button type="submit" class="btn btn-danger">Reset All Votes</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h2 class="h5 mb-0">Add New Car</h2>
+    </div>
+    <div class="card-body">
+        <form action="{{ url_for('upload_car') }}" method="POST" enctype="multipart/form-data">
+            <div class="mb-3">
+                <label for="number" class="form-label">Car Number</label>
+                <input type="number" class="form-control" id="number" name="number" required>
+            </div>
+            <div class="mb-3">
+                <label for="owner_name" class="form-label">Owner Name</label>
+                <input type="text" class="form-control" id="owner_name" name="owner_name" required>
+            </div>
+            <div class="mb-3">
+                <label for="image" class="form-label">Car Image</label>
+                <input type="file" class="form-control" id="image" name="image" accept="image/*" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Car</button>
+        </form>
+    </div>
+</div>
+
+<h2 class="mb-3">Registered Cars</h2>
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Car #</th>
+                <th>Owner</th>
+                <th>Image</th>
+                <th>Votes</th>
+                <th>Added On</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for car in cars %}
+            <tr>
+                <td>{{ car.number }}</td>
+                <td>{{ car.owner_name }}</td>
+                <td>
+                    <img src="{{ url_for('static', filename=car.image_path) }}" 
+                         alt="Car {{ car.number }}" 
+                         style="max-height: 100px;">
+                </td>
+                <td>{{ car.votes }}</td>
+                <td>{{ car.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

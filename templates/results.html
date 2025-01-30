@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 class="mb-4">Voting Results</h1>
+
+<div class="row">
+    {% for car in cars %}
+    <div class="col-md-4 mb-4">
+        <div class="card h-100 {% if loop.first %}border-success{% endif %}">
+            {% if loop.first %}
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Current Leader!</h5>
+            </div>
+            {% endif %}
+            <img src="{{ url_for('static', filename=car.image_path) }}" class="card-img-top" alt="Car {{ car.number }}">
+            <div class="card-body">
+                <h5 class="card-title">Car #{{ car.number }}</h5>
+                <p class="card-text">Owner: {{ car.owner_name }}</p>
+                <p class="card-text">
+                    <strong>Total Votes: {{ car.votes }}</strong>
+                </p>
+            </div>
+            {% if loop.first %}
+            <div class="card-footer bg-success text-white">
+                <small>Leading with {{ car.votes }} votes!</small>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

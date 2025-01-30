@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 class="mb-4">Vote for Your Favorite Pinewood Derby Car!</h1>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h5 class="card-title">Enter Your Voting Code</h5>
+        <div class="input-group mb-3">
+            <input type="text" id="vote-code" class="form-control" placeholder="Enter 5-digit code" maxlength="5" pattern="[0-9]{5}" required>
+            <button class="btn btn-outline-secondary" type="button" onclick="validateCode()">Validate Code</button>
+        </div>
+        <div id="code-status" class="alert alert-info d-none">
+            Enter your 5-digit voting code to vote
+        </div>
+    </div>
+</div>
+
+<div class="row row-cols-1 row-cols-md-3 g-4">
+    {% for car in cars %}
+    <div class="col">
+        <div class="card h-100">
+            <img src="{{ url_for('static', filename=car.image_path) }}" class="card-img-top" alt="Car {{ car.number }}">
+            <div class="card-body">
+                <h5 class="card-title">Car #{{ car.number }}</h5>
+                <p class="card-text">Owner: {{ car.owner_name }}</p>
+                <button class="btn btn-primary vote-btn" data-car-id="{{ car.id }}" onclick="voteCar({{ car.id }})" disabled>
+                    Vote for this car
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
