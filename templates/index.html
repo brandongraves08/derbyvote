@@ -1,35 +1,121 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1 class="mb-4">Vote for Your Favorite Pinewood Derby Car!</h1>
-
-<div class="card mb-4">
-    <div class="card-body">
-        <h5 class="card-title">Enter Your Voting Code</h5>
-        <div class="input-group mb-3">
-            <input type="text" id="vote-code" class="form-control" placeholder="Enter 5-digit code" maxlength="5" pattern="[0-9]{5}" required>
-            <button class="btn btn-outline-secondary" type="button" onclick="validateCode()">Validate Code</button>
-        </div>
-        <div id="code-status" class="alert alert-info d-none">
-            Enter your 5-digit voting code to vote
-        </div>
+<div class="container mt-5">
+    <h1 class="text-center mb-4">Pinewood Derby Voting</h1>
+    
+    <!-- Voting Period Status -->
+    <div class="alert {% if voting_status == 'active' %}alert-success{% elif voting_status == 'ended' %}alert-danger{% else %}alert-info{% endif %} text-center mb-4">
+        {% if voting_status == "not_started" %}
+            {% if voting_start %}
+                Voting will start on {{ voting_start.strftime('%B %d, %Y at %I:%M %p UTC') }}
+            {% else %}
+                Voting period has not been set
+            {% endif %}
+        {% elif voting_status == "ended" %}
+            Voting ended on {{ voting_end.strftime('%B %d, %Y at %I:%M %p UTC') }}
+        {% else %}
+            Voting is open until {{ voting_end.strftime('%B %d, %Y at %I:%M %p UTC') }}
+        {% endif %}
     </div>
-</div>
 
-<div class="row row-cols-1 row-cols-md-3 g-4">
-    {% for car in cars %}
-    <div class="col">
-        <div class="card h-100">
-            <img src="{{ url_for('static', filename=car.image_path) }}" class="card-img-top" alt="Car {{ car.number }}">
-            <div class="card-body">
-                <h5 class="card-title">Car #{{ car.number }}</h5>
-                <p class="card-text">Owner: {{ car.owner_name }}</p>
-                <button class="btn btn-primary vote-btn" data-car-id="{{ car.id }}" onclick="voteCar({{ car.id }})" disabled>
-                    Vote for this car
-                </button>
+    <h1 class="mb-4">Vote for Your Favorite Pinewood Derby Car!</h1>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Enter Your Voting Code</h5>
+            <div class="input-group mb-3">
+                <input type="text" id="vote-code" class="form-control" placeholder="Enter 5-digit code" maxlength="5" pattern="[0-9]{5}" required>
+                <button class="btn btn-outline-secondary" type="button" onclick="validateCode()">Validate Code</button>
+            </div>
+            <div id="code-status" class="alert alert-info d-none">
+                Enter your 5-digit voting code to vote
             </div>
         </div>
     </div>
-    {% endfor %}
+
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        {% for car in cars %}
+        <div class="col">
+            <div class="card h-100">
+                <img src="{{ url_for('static', filename=car.image_path) }}" class="card-img-top" alt="Car {{ car.number }}">
+                <div class="card-body">
+                    <h5 class="card-title">Car #{{ car.number }}</h5>
+                    <p class="card-text">Owner: {{ car.owner_name }}</p>
+                    {% if voting_status == "active" %}
+                    <button class="btn btn-primary vote-btn" data-car-id="{{ car.id }}" onclick="voteCar({{ car.id }})">
+                        Vote for this car
+                    </button>
+                    {% else %}
+                    <button class="btn btn-primary vote-btn" data-car-id="{{ car.id }}" disabled>
+                        Vote for this car
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
 </div>
+
+<!-- Vote Success Modal -->
+<div class="modal fade" id="voteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Vote Status</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="voteMessage"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const voteForms = document.querySelectorAll('.vote-form');
+    const voteModal = new bootstrap.Modal(document.getElementById('voteModal'));
+    const voteMessage = document.getElementById('voteMessage');
+
+    voteForms.forEach(form => {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const carId = this.dataset.carId;
+            const formData = new FormData();
+            formData.append('code', this.querySelector('input[name="vote_code"]').value);
+            formData.append('car_id', carId);
+
+            try {
+                const response = await fetch('/vote', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    voteMessage.textContent = 'Vote recorded successfully!';
+                    voteMessage.className = 'text-success';
+                    this.reset();
+                } else {
+                    voteMessage.textContent = data.error || 'An error occurred while voting';
+                    voteMessage.className = 'text-danger';
+                }
+            } catch (error) {
+                voteMessage.textContent = 'An error occurred while voting';
+                voteMessage.className = 'text-danger';
+            }
+            
+            voteModal.show();
+        });
+    });
+});
+</script>
 {% endblock %}

@@ -55,6 +55,20 @@ class VoteCode(db.Model):
     used_at = db.Column(db.DateTime)
     car_voted_for = db.Column(db.Integer, db.ForeignKey('car.id'))
 
+class Settings(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    voting_start = db.Column(db.DateTime, nullable=True)
+    voting_end = db.Column(db.DateTime, nullable=True)
+
+    @staticmethod
+    def get_settings():
+        settings = Settings.query.first()
+        if not settings:
+            settings = Settings()
+            db.session.add(settings)
+            db.session.commit()
+        return settings
+
 def generate_vote_code():
     while True:
         code = ''.join(random.choices(string.digits, k=5))
@@ -72,13 +86,68 @@ def load_user(user_id):
 @app.route('/')
 def index():
     cars = Car.query.all()
-    return render_template('index.html', cars=cars)
+    settings = Settings.get_settings()
+    now = datetime.utcnow()
+    
+    voting_status = "not_started"
+    if settings.voting_start and settings.voting_end:
+        if now < settings.voting_start:
+            voting_status = "not_started"
+        elif now > settings.voting_end:
+            voting_status = "ended"
+        else:
+            voting_status = "active"
+    
+    return render_template('index.html', 
+                         cars=cars,
+                         voting_status=voting_status,
+                         voting_start=settings.voting_start,
+                         voting_end=settings.voting_end)
 
-@app.route('/admin')
+@app.route('/admin', methods=['GET', 'POST'])
 @login_required
 def admin():
+    if request.method == 'POST':
+        if 'car_name' in request.form:
+            # Handle car upload
+            car_name = request.form['car_name']
+            car_number = request.form['car_number']
+            photo = request.files['photo']
+            
+            if photo:
+                filename = secure_filename(photo.filename)
+                unique_filename = f"{uuid.uuid4()}_{filename}"
+                photo.save(os.path.join(app.config['UPLOAD_FOLDER'], unique_filename))
+                
+                car = Car(
+                    number=car_number,
+                    owner_name=car_name,
+                    image_path=os.path.join('uploads', unique_filename)
+                )
+                db.session.add(car)
+                db.session.commit()
+                flash('Car added successfully!')
+        
+        elif 'voting_start' in request.form:
+            # Handle voting period settings
+            try:
+                start_str = request.form['voting_start']
+                end_str = request.form['voting_end']
+                
+                settings = Settings.get_settings()
+                settings.voting_start = datetime.fromisoformat(start_str) if start_str else None
+                settings.voting_end = datetime.fromisoformat(end_str) if end_str else None
+                db.session.commit()
+                flash('Voting period updated successfully!')
+            except ValueError:
+                flash('Invalid date format. Please use YYYY-MM-DDTHH:MM format.')
+    
     cars = Car.query.all()
-    return render_template('admin.html', cars=cars)
+    settings = Settings.get_settings()
+    return render_template('admin.html', 
+                         cars=cars,
+                         voting_start=settings.voting_start,
+                         voting_end=settings.voting_end)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -158,24 +227,39 @@ def print_codes():
     used_codes = VoteCode.query.filter_by(is_used=True).order_by(VoteCode.used_at.desc()).all()
     return render_template('print_codes.html', unused_codes=unused_codes, used_codes=used_codes)
 
-@app.route('/vote/<int:car_id>', methods=['POST'])
-def vote(car_id):
-    vote_code = request.form.get('vote_code')
+@app.route('/vote', methods=['POST'])
+def vote():
+    settings = Settings.get_settings()
+    now = datetime.utcnow()
+    
+    if not settings.voting_start or not settings.voting_end:
+        return jsonify({'error': 'Voting period has not been set'}), 400
+    if now < settings.voting_start:
+        return jsonify({'error': 'Voting has not started yet'}), 400
+    if now > settings.voting_end:
+        return jsonify({'error': 'Voting has ended'}), 400
+        
+    code = request.form.get('code')
+    car_id = request.form.get('car_id')
+    
+    if not code or not car_id:
+        return jsonify({'error': 'Missing code or car_id'}), 400
+        
+    vote_code = VoteCode.query.filter_by(code=code).first()
     if not vote_code:
-        return jsonify({'error': 'Vote code is required'}), 400
-    
-    code_record = VoteCode.query.filter_by(code=vote_code, is_used=False).first()
-    if not code_record:
-        return jsonify({'error': 'Invalid or already used vote code'}), 400
-    
-    car = Car.query.get_or_404(car_id)
+        return jsonify({'error': 'Invalid code'}), 400
+    if vote_code.is_used:
+        return jsonify({'error': 'Code already used'}), 400
+        
+    car = Car.query.get(car_id)
+    if not car:
+        return jsonify({'error': 'Invalid car'}), 400
+        
+    vote_code.is_used = True
+    vote_code.car_voted_for = car_id
     car.votes += 1
-    
-    code_record.is_used = True
-    code_record.used_at = datetime.utcnow()
-    code_record.car_voted_for = car_id
-    
     db.session.commit()
+    
     return jsonify({'message': 'Vote recorded successfully'})
 
 @app.route('/results')
@@ -220,6 +304,9 @@ with app.app_context():
             )
             db.session.add(admin)
             db.session.commit()
+            
+        # Create settings if not exists
+        Settings.get_settings()
     except Exception as e:
         app.logger.error(f"Database initialization error: {str(e)}")
         raise
