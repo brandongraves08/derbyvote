@@ -45,8 +45,8 @@ class User(UserMixin, db.Model):
 class Car(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     number = db.Column(db.Integer, unique=True, nullable=False)
-    owner_name = db.Column(db.String(100), nullable=False)
-    image_path = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.String(200))
+    image_filename = db.Column(db.String(200))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     votes = db.Column(db.Integer, default=0)
 
@@ -112,27 +112,7 @@ def index():
 @login_required
 def admin():
     if request.method == 'POST':
-        if 'car_name' in request.form:
-            # Handle car upload
-            car_name = request.form['car_name']
-            car_number = request.form['car_number']
-            photo = request.files['photo']
-            
-            if photo:
-                filename = secure_filename(photo.filename)
-                unique_filename = f"{uuid.uuid4()}_{filename}"
-                photo.save(os.path.join(app.config['UPLOAD_FOLDER'], unique_filename))
-                
-                car = Car(
-                    number=car_number,
-                    owner_name=car_name,
-                    image_path=os.path.join('uploads', unique_filename)
-                )
-                db.session.add(car)
-                db.session.commit()
-                flash('Car added successfully!')
-        
-        elif 'voting_start' in request.form:
+        if 'voting_start' in request.form:
             # Handle voting period settings
             try:
                 start_str = request.form['voting_start']
@@ -173,32 +153,50 @@ def logout():
     logout_user()
     return redirect(url_for('index'))
 
-@app.route('/upload', methods=['POST'])
+@app.route('/car_image/<filename>')
+def car_image(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+@app.route('/admin/upload_car', methods=['POST'])
 @login_required
 def upload_car():
-    if 'image' not in request.files:
-        flash('No image file')
-        return redirect(url_for('admin'))
-    
-    file = request.files['image']
-    if file.filename == '':
-        flash('No selected file')
-        return redirect(url_for('admin'))
-    
-    if file:
-        filename = secure_filename(file.filename)
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(file_path)
+    try:
+        number = request.form.get('number')
+        description = request.form.get('description', '')
         
+        if not number:
+            flash('Car number is required', 'error')
+            return redirect(url_for('admin'))
+        
+        # Check if car number already exists
+        if Car.query.filter_by(number=number).first():
+            flash('Car number already exists', 'error')
+            return redirect(url_for('admin'))
+        
+        # Handle image upload
+        image_filename = None
+        if 'image' in request.files:
+            file = request.files['image']
+            if file and file.filename:
+                # Generate a unique filename
+                ext = os.path.splitext(file.filename)[1]
+                image_filename = f'car_{number}_{uuid.uuid4().hex[:8]}{ext}'
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], image_filename))
+        
+        # Create new car
         car = Car(
-            number=request.form.get('number'),
-            owner_name=request.form.get('owner_name'),
-            image_path=os.path.join('uploads', filename)
+            number=number,
+            description=description,
+            image_filename=image_filename
         )
         db.session.add(car)
         db.session.commit()
         
-        flash('Car added successfully')
+        flash('Car added successfully!', 'success')
+    except Exception as e:
+        print(f"Error adding car: {str(e)}")
+        flash('Error adding car', 'error')
+    
     return redirect(url_for('admin'))
 
 @app.route('/admin/generate_codes', methods=['POST'])
