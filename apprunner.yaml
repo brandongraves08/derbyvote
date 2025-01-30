@@ -3,30 +3,48 @@ runtime: python3
 build:
   commands:
     pre-build:
+      # Install Python 3.12
       - curl -O https://www.python.org/ftp/python/3.12.1/Python-3.12.1.tgz
       - tar xzf Python-3.12.1.tgz
       - cd Python-3.12.1 && ./configure --enable-optimizations && make altinstall
       - ln -sf /usr/local/bin/python3.12 /usr/local/bin/python3
       - ln -sf /usr/local/bin/pip3.12 /usr/local/bin/pip3
+      # Install system dependencies
+      - apt-get update && apt-get install -y --no-install-recommends gcc
     build:
       - pip3 install --upgrade pip
       - pip3 install -r requirements.txt
-      # Create necessary directories with proper permissions
+      # Create and set permissions for directories
       - mkdir -p instance
       - mkdir -p static/uploads
       - chmod -R 777 instance
-      - chmod -R 777 static
+      - chmod -R 777 static/uploads
       - chmod -R 777 .
 run:
   runtime-version: 3.12.0
-  command: python3 -c "import os; os.makedirs('instance', exist_ok=True); os.chmod('instance', 0o777)" && gunicorn --bind 0.0.0.0:8080 --workers 1 --timeout 0 --log-level debug app:app
+  command: |
+    python3 -c "
+    import os
+    os.makedirs('instance', exist_ok=True)
+    os.makedirs('static/uploads', exist_ok=True)
+    os.chmod('instance', 0o777)
+    os.chmod('static/uploads', 0o777)
+    " && 
+    gunicorn --bind 0.0.0.0:8080 \
+             --workers 2 \
+             --threads 4 \
+             --timeout 120 \
+             --log-level info \
+             --access-logfile - \
+             --error-logfile - \
+             app:app
   network:
     port: 8080
     health-check:
       path: "/health"
-      interval: 5
+      interval: 10
       timeout: 5
-      healthy-threshold: 2
+      healthy-threshold: 3
       unhealthy-threshold: 2
   env:
     - name: FLASK_APP
@@ -35,7 +53,18 @@ run:
       value: production
     - name: PYTHONUNBUFFERED
       value: "1"
+    - name: GUNICORN_CMD_ARGS
+      value: "--log-level=info"
     - name: SECRET_KEY
       value: "your-secure-secret-key-change-this"
+    - name: DATABASE_URL
+      value: "sqlite:///instance/derby.db"
     - name: PATH
       value: "/usr/local/bin:${PATH}"
+  files:
+    - source: /instance
+      destination: /var/task/instance
+      mode: 777
+    - source: /static/uploads
+      destination: /var/task/static/uploads
+      mode: 777

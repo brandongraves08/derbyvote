@@ -324,12 +324,32 @@ def reset_votes():
 @app.route('/health')
 def health_check():
     try:
-        # Test database connection
+        # Check database connection
         db.session.execute('SELECT 1')
-        return jsonify({"status": "healthy", "database": "connected"}), 200
+        
+        # Check upload directory
+        if not os.path.exists(app.config['UPLOAD_FOLDER']):
+            return jsonify({'status': 'error', 'message': 'Upload directory not found'}), 500
+            
+        # Check instance directory
+        instance_dir = os.path.join(os.getcwd(), 'instance')
+        if not os.path.exists(instance_dir):
+            return jsonify({'status': 'error', 'message': 'Instance directory not found'}), 500
+            
+        # All checks passed
+        return jsonify({
+            'status': 'healthy',
+            'timestamp': datetime.utcnow().isoformat(),
+            'database': 'connected',
+            'upload_dir': 'exists',
+            'instance_dir': 'exists'
+        })
     except Exception as e:
-        app.logger.error(f"Health check failed: {str(e)}")
-        return jsonify({"status": "unhealthy", "error": str(e)}), 500
+        return jsonify({
+            'status': 'error',
+            'message': str(e),
+            'timestamp': datetime.utcnow().isoformat()
+        }), 500
 
 # Initialize database
 with app.app_context():
