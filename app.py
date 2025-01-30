@@ -94,7 +94,7 @@ def index():
     now = datetime.utcnow()
     
     voting_status = "not_started"
-    if settings.voting_start and settings.voting_end:
+    if settings and settings.voting_start and settings.voting_end:
         if now < settings.voting_start:
             voting_status = "not_started"
         elif now > settings.voting_end:
@@ -103,10 +103,10 @@ def index():
             voting_status = "active"
     
     return render_template('index.html', 
-                         cars=cars,
+                         cars=cars, 
                          voting_status=voting_status,
-                         voting_start=settings.voting_start,
-                         voting_end=settings.voting_end)
+                         voting_start=settings.voting_start if settings else None,
+                         voting_end=settings.voting_end if settings else None)
 
 @app.route('/admin', methods=['GET', 'POST'])
 @login_required
@@ -203,23 +203,16 @@ def upload_car():
 @login_required
 def generate_codes():
     try:
-        count = int(request.form.get('code_count', 1))
-        if count < 1 or count > 1000:
-            flash('Please enter a number between 1 and 1000')
-            return redirect(url_for('admin'))
-        
-        new_codes = []
+        count = int(request.form.get('count', 1))
         for _ in range(count):
-            code = VoteCode(code=generate_vote_code())
-            db.session.add(code)
-            new_codes.append(code)
-        
+            code = generate_vote_code()
+            vote_code = VoteCode(code=code)
+            db.session.add(vote_code)
         db.session.commit()
-        flash(f'Successfully generated {count} new voting codes')
+        flash(f'Successfully generated {count} new voting codes', 'success')
     except Exception as e:
-        db.session.rollback()
-        flash('Error generating codes: ' + str(e))
-    
+        print(f"Error generating codes: {str(e)}")
+        flash('Error generating codes', 'error')
     return redirect(url_for('admin'))
 
 @app.route('/admin/print_codes')

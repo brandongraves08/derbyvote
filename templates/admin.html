@@ -59,16 +59,17 @@
     <!-- Generate Voting Codes -->
     <div class="card mb-4">
         <div class="card-header">
-            <h2 class="h5 mb-0">Voting Codes</h2>
+            <h2 class="h5 mb-0">Generate Voting Codes</h2>
         </div>
         <div class="card-body">
-            <form action="{{ url_for('generate_codes') }}" method="POST" class="mb-3">
-                <div class="input-group">
-                    <input type="number" class="form-control" name="count" placeholder="Number of codes to generate" required>
-                    <button type="submit" class="btn btn-primary">Generate Codes</button>
+            <form action="{{ url_for('generate_codes') }}" method="POST">
+                <div class="mb-3">
+                    <label for="count" class="form-label">Number of Codes to Generate</label>
+                    <input type="number" class="form-control" id="count" name="count" min="1" max="100" value="10" required>
                 </div>
+                <button type="submit" class="btn btn-primary">Generate Codes</button>
+                <a href="{{ url_for('print_codes') }}" class="btn btn-secondary">View/Print Codes</a>
             </form>
-            <a href="{{ url_for('print_codes') }}" class="btn btn-secondary">View/Print Codes</a>
         </div>
     </div>
 

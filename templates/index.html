@@ -3,46 +3,40 @@
 {% block content %}
 <div class="container mt-5">
     <h1 class="text-center mb-4">Pinewood Derby Voting</h1>
-    
+
     <!-- Voting Period Status -->
-    <div class="alert {% if voting_status == 'active' %}alert-success{% elif voting_status == 'ended' %}alert-danger{% else %}alert-info{% endif %} text-center mb-4" id="voting-status">
+    <div class="alert {% if voting_status == 'active' %}alert-success{% elif voting_status == 'ended' %}alert-danger{% else %}alert-info{% endif %} text-center mb-4">
         {% if voting_status == "not_started" %}
             {% if voting_start %}
-                <span id="start-message" data-time="{{ voting_start.isoformat() }}" data-end="{{ voting_end.isoformat() if voting_end else '' }}" style="display: none">
-                    Voting will start on {{ voting_start.strftime('%B %d, %Y at %I:%M %p UTC') }}
-                </span>
-                <span class="duration-message">
-                    {% if voting_start and voting_end %}
-                        Voting will be open for {{ ((voting_end - voting_start).total_seconds() / 3600)|round|int }} hours
-                    {% endif %}
-                </span>
+                Voting starts {{ voting_start.strftime('%B %d, %Y at %I:%M %p') }}
             {% else %}
                 Voting period has not been set
             {% endif %}
         {% elif voting_status == "ended" %}
-            <span id="end-message" data-time="{{ voting_end.isoformat() }}" data-start="{{ voting_start.isoformat() if voting_start else '' }}" style="display: none">
-                Voting ended on {{ voting_end.strftime('%B %d, %Y at %I:%M %p UTC') }}
-            </span>
-            <span class="duration-message">
-                {% if voting_start and voting_end %}
-                    Voting was open for {{ ((voting_end - voting_start).total_seconds() / 3600)|round|int }} hours
-                {% endif %}
-            </span>
+            Voting has ended
         {% else %}
-            <span id="active-message" data-time="{{ voting_end.isoformat() }}" data-start="{{ voting_start.isoformat() if voting_start else '' }}" style="display: none">
-                Voting is open until {{ voting_end.strftime('%B %d, %Y at %I:%M %p UTC') }}
-            </span>
-            <span class="duration-message">
-                {% if voting_start and voting_end %}
-                    Voting is open for {{ ((voting_end - voting_start).total_seconds() / 3600)|round|int }} hours
-                {% endif %}
-            </span>
+            Voting is currently open!
         {% endif %}
     </div>
 
-    <h1 class="text-center mb-4">Vote for Your Favorite Pinewood Derby Car!</h1>
+    {% if voting_status == "active" %}
+    <!-- Global Voting Form -->
+    <div class="row justify-content-center mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title text-center">Enter Your Voting Code</h5>
+                    <div class="mb-3">
+                        <input type="text" class="form-control" id="global-vote-code" placeholder="Enter your voting code">
+                    </div>
+                    <button type="button" class="btn btn-primary w-100" onclick="applyCodeToAll()">Apply Code to All Cars</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
-    <!-- Car Grid -->
+    <!-- Cars Grid -->
     <div class="row row-cols-1 row-cols-md-3 g-4">
         {% for car in cars %}
         <div class="col">
@@ -58,12 +52,13 @@
                     {% if car.description %}
                     <p class="card-text">{{ car.description }}</p>
                     {% endif %}
+                    
                     {% if voting_status == "active" %}
-                    <form class="vote-form" data-car-id="{{ car.id }}">
+                    <form class="vote-form mt-3" onsubmit="submitVote(event, {{ car.id }})">
                         <div class="mb-3">
-                            <input type="text" class="form-control" name="vote_code" placeholder="Enter voting code" required>
+                            <input type="text" class="form-control vote-code-input" placeholder="Enter voting code">
                         </div>
-                        <button type="submit" class="btn btn-primary w-100">Vote for this car</button>
+                        <button type="submit" class="btn btn-primary w-100">Vote for This Car</button>
                     </form>
                     {% endif %}
                 </div>
@@ -72,7 +67,7 @@
         {% endfor %}
     </div>
 
-    <!-- Vote Confirmation Modal -->
+    <!-- Vote Result Modal -->
     <div class="modal fade" id="voteModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -94,97 +89,65 @@
 
 {% block scripts %}
 <script>
+// Initialize vote modal
+let voteModal;
 document.addEventListener('DOMContentLoaded', function() {
-    // Auto-fill code from URL if present
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');
-    if (code) {
-        const codeInputs = document.querySelectorAll('input[name="vote_code"]');
-        codeInputs.forEach(input => {
-            input.value = code;
-        });
-    }
-
-    // Convert UTC times to local timezone
-    function formatLocalDateTime(utcString) {
-        const date = new Date(utcString);
-        return date.toLocaleDateString(undefined, {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        }) + ' at ' + date.toLocaleTimeString(undefined, {
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true
-        });
-    }
-
-    // Update start message if present
-    const startSpan = document.getElementById('start-message');
-    if (startSpan) {
-        const startTime = startSpan.dataset.time;
-        startSpan.textContent = 'Voting will start on ' + formatLocalDateTime(startTime);
-        startSpan.style.display = 'inline';
-    }
-
-    // Update end message if present
-    const endSpan = document.getElementById('end-message');
-    if (endSpan) {
-        const endTime = endSpan.dataset.time;
-        endSpan.textContent = 'Voting ended on ' + formatLocalDateTime(endTime);
-        endSpan.style.display = 'inline';
-    }
-
-    // Update active message if present
-    const activeSpan = document.getElementById('active-message');
-    if (activeSpan) {
-        const endTime = activeSpan.dataset.time;
-        activeSpan.textContent = 'Voting is open until ' + formatLocalDateTime(endTime);
-        activeSpan.style.display = 'inline';
-    }
-
-    // Initialize Bootstrap modal
-    const voteModal = new bootstrap.Modal(document.getElementById('voteModal'));
-    const voteMessage = document.getElementById('voteMessage');
-
-    // Handle voting form submission
-    document.querySelectorAll('.vote-form').forEach(form => {
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const carId = this.dataset.carId;
-            const code = this.querySelector('input[name="vote_code"]').value;
-            
-            fetch('/vote', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: `code=${encodeURIComponent(code)}&car_id=${encodeURIComponent(carId)}`
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    voteMessage.textContent = data.error;
-                    voteMessage.className = 'text-danger';
-                } else {
-                    voteMessage.textContent = 'Vote recorded successfully!';
-                    voteMessage.className = 'text-success';
-                    // Reset the form
-                    this.reset();
-                    // Reload the page after 1.5 seconds
-                    setTimeout(() => window.location.reload(), 1500);
-                }
-                voteModal.show();
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                voteMessage.textContent = 'An error occurred while submitting your vote. Please try again.';
-                voteMessage.className = 'text-danger';
-                voteModal.show();
-            });
-        });
-    });
+    voteModal = new bootstrap.Modal(document.getElementById('voteModal'));
 });
+
+// Function to apply code to all vote inputs
+function applyCodeToAll() {
+    const code = document.getElementById('global-vote-code').value;
+    document.querySelectorAll('.vote-code-input').forEach(input => {
+        input.value = code;
+    });
+}
+
+// Function to submit a vote
+function submitVote(event, carId) {
+    event.preventDefault();
+    const form = event.target;
+    const code = form.querySelector('.vote-code-input').value;
+    
+    fetch('/vote', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `code=${encodeURIComponent(code)}&car_id=${encodeURIComponent(carId)}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        const messageElem = document.getElementById('voteMessage');
+        if (data.error) {
+            messageElem.textContent = data.error;
+            messageElem.className = 'text-danger';
+        } else {
+            messageElem.textContent = 'Vote recorded successfully!';
+            messageElem.className = 'text-success';
+            // Clear all forms
+            document.getElementById('global-vote-code').value = '';
+            document.querySelectorAll('.vote-code-input').forEach(input => input.value = '');
+            // Reload after success
+            setTimeout(() => window.location.reload(), 1500);
+        }
+        voteModal.show();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        const messageElem = document.getElementById('voteMessage');
+        messageElem.textContent = 'An error occurred while submitting your vote. Please try again.';
+        messageElem.className = 'text-danger';
+        voteModal.show();
+    });
+}
+
+// Auto-fill code from URL if present
+const urlParams = new URLSearchParams(window.location.search);
+const code = urlParams.get('code');
+if (code) {
+    document.getElementById('global-vote-code').value = code;
+    applyCodeToAll();
+}
 </script>
 {% endblock %}
