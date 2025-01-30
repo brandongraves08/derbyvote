@@ -2,11 +2,14 @@ version: 1.0
 runtime: python3
 build:
   commands:
+    pre-build:
+      - /usr/bin/python3 -m ensurepip --upgrade
+      - /usr/local/bin/pip3 install --upgrade pip
     build:
-      - echo "Using platform hooks for build"
+      - /usr/local/bin/pip3 install -r requirements.txt
 run:
   runtime-version: 3.11
-  command: python3 -m gunicorn --bind 0.0.0.0:8080 --workers 2 --threads 4 --timeout 120 app:app
+  command: /usr/bin/python3 -m gunicorn --bind 0.0.0.0:8080 --workers 2 --threads 4 --timeout 120 app:app
   network:
     port: 8080
   env:
@@ -16,6 +19,8 @@ run:
       value: production
     - name: PYTHONUNBUFFERED
       value: "1"
+    - name: PATH
+      value: /usr/local/bin:/usr/bin:$PATH
   secrets:
     - name: SECRET_KEY
       value-from: /pinewood-derby/secret-key
