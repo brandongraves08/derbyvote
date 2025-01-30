@@ -261,38 +261,54 @@ def print_codes():
 
 @app.route('/vote', methods=['POST'])
 def vote():
-    settings = Settings.get_settings()
+    # Check if voting is active
+    settings = Settings.query.first()
     now = datetime.utcnow()
     
-    if not settings.voting_start or not settings.voting_end:
+    if not settings or not settings.voting_start or not settings.voting_end:
         return jsonify({'error': 'Voting period has not been set'}), 400
+    
     if now < settings.voting_start:
         return jsonify({'error': 'Voting has not started yet'}), 400
+    
     if now > settings.voting_end:
         return jsonify({'error': 'Voting has ended'}), 400
-        
+
+    # Get the vote code and car ID from the form
     code = request.form.get('code')
     car_id = request.form.get('car_id')
     
     if not code or not car_id:
-        return jsonify({'error': 'Missing code or car_id'}), 400
-        
-    vote_code = VoteCode.query.filter_by(code=code).first()
-    if not vote_code:
-        return jsonify({'error': 'Invalid code'}), 400
-    if vote_code.is_used:
-        return jsonify({'error': 'Code already used'}), 400
-        
+        return jsonify({'error': 'Missing vote code or car ID'}), 400
+
+    # Validate the car exists
     car = Car.query.get(car_id)
     if not car:
-        return jsonify({'error': 'Invalid car'}), 400
+        return jsonify({'error': 'Invalid car ID'}), 400
+
+    # Find and validate the vote code
+    vote_code = VoteCode.query.filter_by(code=code, is_used=False).first()
+    if not vote_code:
+        return jsonify({'error': 'Invalid or already used vote code'}), 400
+
+    try:
+        # Mark the code as used
+        vote_code.is_used = True
+        vote_code.used_at = datetime.utcnow()
+        vote_code.car_voted_for = car.id
         
-    vote_code.is_used = True
-    vote_code.car_voted_for = car_id
-    car.votes += 1
-    db.session.commit()
-    
-    return jsonify({'message': 'Vote recorded successfully'})
+        # Increment the car's vote count
+        car.votes += 1
+        
+        # Save changes
+        db.session.commit()
+        
+        return jsonify({'message': 'Vote recorded successfully'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error recording vote: {str(e)}")
+        return jsonify({'error': 'Failed to record vote'}), 500
 
 @app.route('/results')
 def results():
