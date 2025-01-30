@@ -20,10 +20,7 @@ run:
       value: "--log-level=info --access-logfile - --error-logfile -"
   secrets:
     - name: SECRET_KEY
-      value-from: arn:aws:ssm:${AWS_REGION}:${AWS_ACCOUNT_ID}:parameter/pinewood-derby/secret-key
-  instance:
-    instance-type: CPU-1vCPU-2GB
-    memory: 2GB
+      value-from: /pinewood-derby/secret-key
   health-check:
     protocol: HTTP
     path: /health
