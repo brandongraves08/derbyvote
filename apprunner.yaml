@@ -2,7 +2,11 @@ version: 1.0
 runtime: python3
 build:
   commands:
+    pre-build:
+      - yum update -y
+      - yum install -y python3-pip
     build:
+      - python3 -m pip install --upgrade pip
       - python3 -m pip install -r requirements.txt
 run:
   runtime-version: 3.11
