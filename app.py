@@ -8,6 +8,9 @@ import random
 import string
 from datetime import datetime
 import uuid
+import qrcode
+from io import BytesIO
+import base64
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -54,6 +57,7 @@ class VoteCode(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     used_at = db.Column(db.DateTime)
     car_voted_for = db.Column(db.Integer, db.ForeignKey('car.id'))
+    qr_code = db.Column(db.String(10000), nullable=True)
 
 class Settings(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -223,8 +227,36 @@ def generate_codes():
 @app.route('/admin/print_codes')
 @login_required
 def print_codes():
+    # Get the base URL for QR codes
+    if request.headers.get('X-Forwarded-Proto') and request.headers.get('X-Forwarded-Host'):
+        base_url = f"{request.headers.get('X-Forwarded-Proto')}://{request.headers.get('X-Forwarded-Host')}"
+    else:
+        base_url = request.host_url.rstrip('/')
+    
+    # Get codes and generate QR codes
     unused_codes = VoteCode.query.filter_by(is_used=False).order_by(VoteCode.created_at.desc()).all()
     used_codes = VoteCode.query.filter_by(is_used=True).order_by(VoteCode.used_at.desc()).all()
+    
+    # Generate QR codes for unused codes
+    for code in unused_codes:
+        # Create QR code
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(f"{base_url}/?code={code.code}")
+        qr.make(fit=True)
+
+        # Create QR code image
+        img = qr.make_image(fill_color="black", back_color="white")
+        
+        # Convert to base64 for embedding in HTML
+        buffered = BytesIO()
+        img.save(buffered, format="PNG")
+        code.qr_code = base64.b64encode(buffered.getvalue()).decode()
+    
     return render_template('print_codes.html', unused_codes=unused_codes, used_codes=used_codes)
 
 @app.route('/vote', methods=['POST'])

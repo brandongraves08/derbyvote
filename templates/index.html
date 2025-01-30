@@ -87,6 +87,16 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Auto-fill code from URL if present
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    if (code) {
+        const codeInputs = document.querySelectorAll('input[name="vote_code"]');
+        codeInputs.forEach(input => {
+            input.value = code;
+        });
+    }
+
     // Convert UTC times to local timezone
     function formatLocalDateTime(utcString) {
         const date = new Date(utcString);
