@@ -3,13 +3,14 @@ runtime: python3
 build:
   commands:
     pre-build:
-      - dnf install -y python3.11-pip
+      - curl -O https://bootstrap.pypa.io/get-pip.py
+      - python3 get-pip.py --user
+      - export PATH=$PATH:$HOME/.local/bin
     build:
-      - python3.11 -m pip install --upgrade pip
-      - python3.11 -m pip install -r requirements.txt
+      - pip3 install --user -r requirements.txt
 run:
   runtime-version: 3.11
-  command: python3.11 -m gunicorn --bind 0.0.0.0:8080 --workers 2 --threads 4 --timeout 120 app:app
+  command: python3 -m gunicorn --bind 0.0.0.0:8080 --workers 2 --threads 4 --timeout 120 app:app
   network:
     port: 8080
   env:
@@ -19,6 +20,8 @@ run:
       value: production
     - name: PYTHONUNBUFFERED
       value: "1"
+    - name: PATH
+      value: $PATH:$HOME/.local/bin
   secrets:
     - name: SECRET_KEY
       value-from: /pinewood-derby/secret-key
