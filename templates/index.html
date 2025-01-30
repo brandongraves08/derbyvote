@@ -8,20 +8,23 @@
     <div class="alert {% if voting_status == 'active' %}alert-success{% elif voting_status == 'ended' %}alert-danger{% else %}alert-info{% endif %} text-center mb-4" id="voting-status">
         {% if voting_status == "not_started" %}
             {% if voting_start %}
-                <span id="start-message" data-time="{{ voting_start.isoformat() }}">
+                <span id="start-message" data-time="{{ voting_start.isoformat() }}" style="display: none">
                     Voting will start on {{ voting_start.strftime('%B %d, %Y at %I:%M %p UTC') }}
                 </span>
+                <span class="loading-message">Loading voting schedule...</span>
             {% else %}
                 Voting period has not been set
             {% endif %}
         {% elif voting_status == "ended" %}
-            <span id="end-message" data-time="{{ voting_end.isoformat() }}">
+            <span id="end-message" data-time="{{ voting_end.isoformat() }}" style="display: none">
                 Voting ended on {{ voting_end.strftime('%B %d, %Y at %I:%M %p UTC') }}
             </span>
+            <span class="loading-message">Loading voting schedule...</span>
         {% else %}
-            <span id="active-message" data-time="{{ voting_end.isoformat() }}">
+            <span id="active-message" data-time="{{ voting_end.isoformat() }}" style="display: none">
                 Voting is open until {{ voting_end.strftime('%B %d, %Y at %I:%M %p UTC') }}
             </span>
+            <span class="loading-message">Loading voting schedule...</span>
         {% endif %}
     </div>
 
@@ -116,6 +119,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (startSpan) {
         const startTime = startSpan.dataset.time;
         startSpan.textContent = 'Voting will start on ' + formatLocalDateTime(startTime);
+        startSpan.style.display = 'inline';
+        startSpan.previousElementSibling?.remove(); // Remove loading message
     }
 
     // Update end message if present
@@ -123,6 +128,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (endSpan) {
         const endTime = endSpan.dataset.time;
         endSpan.textContent = 'Voting ended on ' + formatLocalDateTime(endTime);
+        endSpan.style.display = 'inline';
+        endSpan.previousElementSibling?.remove(); // Remove loading message
     }
 
     // Update active message if present
@@ -130,6 +137,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (activeSpan) {
         const endTime = activeSpan.dataset.time;
         activeSpan.textContent = 'Voting is open until ' + formatLocalDateTime(endTime);
+        activeSpan.style.display = 'inline';
+        activeSpan.previousElementSibling?.remove(); // Remove loading message
     }
 
     // Handle voting form submission
