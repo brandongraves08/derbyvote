@@ -1,9 +1,15 @@
 version: 1.0
-runtime: docker
+runtime: python3
 build:
-  command: docker build -t derbyvote .
+  commands:
+    pre-build:
+      - dnf install -y python3.11-pip
+    build:
+      - python3.11 -m pip install --upgrade pip
+      - python3.11 -m pip install -r requirements.txt
 run:
-  command: docker run -p 8080:8080 derbyvote
+  runtime-version: 3.11
+  command: python3.11 -m gunicorn --bind 0.0.0.0:8080 --workers 2 --threads 4 --timeout 120 app:app
   network:
     port: 8080
   env:
