@@ -9,18 +9,18 @@
         <h2 class="h5 mb-0">Voting Schedule</h2>
     </div>
     <div class="card-body">
-        <form method="POST">
+        <form method="POST" id="voting-schedule-form">
             <div class="row">
                 <div class="col-md-6">
                     <div class="mb-3">
-                        <label for="voting_start" class="form-label">Voting Start Time (UTC)</label>
+                        <label for="voting_start" class="form-label">Voting Start Time (Your Local Time)</label>
                         <input type="datetime-local" class="form-control" id="voting_start" name="voting_start" 
                                value="{{ voting_start.strftime('%Y-%m-%dT%H:%M') if voting_start else '' }}">
                     </div>
                 </div>
                 <div class="col-md-6">
                     <div class="mb-3">
-                        <label for="voting_end" class="form-label">Voting End Time (UTC)</label>
+                        <label for="voting_end" class="form-label">Voting End Time (Your Local Time)</label>
                         <input type="datetime-local" class="form-control" id="voting_end" name="voting_end"
                                value="{{ voting_end.strftime('%Y-%m-%dT%H:%M') if voting_end else '' }}">
                     </div>
@@ -117,4 +117,56 @@
         </tbody>
     </table>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Convert UTC times to local time for display
+    const startInput = document.getElementById('voting_start');
+    const endInput = document.getElementById('voting_end');
+    
+    if (startInput.value) {
+        const startDate = new Date(startInput.value + 'Z'); // Add Z to indicate UTC
+        startInput.value = startDate.toISOString().slice(0, 16); // Format as YYYY-MM-DDTHH:mm
+    }
+    
+    if (endInput.value) {
+        const endDate = new Date(endInput.value + 'Z'); // Add Z to indicate UTC
+        endInput.value = endDate.toISOString().slice(0, 16); // Format as YYYY-MM-DDTHH:mm
+    }
+    
+    // Convert local time to UTC before submitting
+    document.getElementById('voting-schedule-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData();
+        
+        // Convert local times to UTC
+        if (startInput.value) {
+            const localStart = new Date(startInput.value);
+            formData.append('voting_start', localStart.toISOString());
+        } else {
+            formData.append('voting_start', '');
+        }
+        
+        if (endInput.value) {
+            const localEnd = new Date(endInput.value);
+            formData.append('voting_end', localEnd.toISOString());
+        } else {
+            formData.append('voting_end', '');
+        }
+        
+        // Submit the form
+        fetch(window.location.href, {
+            method: 'POST',
+            body: formData
+        }).then(response => {
+            if (response.ok) {
+                window.location.reload();
+            }
+        });
+    });
+});
+</script>
 {% endblock %}

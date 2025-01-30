@@ -5,17 +5,23 @@
     <h1 class="text-center mb-4">Pinewood Derby Voting</h1>
     
     <!-- Voting Period Status -->
-    <div class="alert {% if voting_status == 'active' %}alert-success{% elif voting_status == 'ended' %}alert-danger{% else %}alert-info{% endif %} text-center mb-4">
+    <div class="alert {% if voting_status == 'active' %}alert-success{% elif voting_status == 'ended' %}alert-danger{% else %}alert-info{% endif %} text-center mb-4" id="voting-status">
         {% if voting_status == "not_started" %}
             {% if voting_start %}
-                Voting will start on {{ voting_start.strftime('%B %d, %Y at %I:%M %p UTC') }}
+                <span id="start-message" data-time="{{ voting_start.isoformat() }}">
+                    Voting will start on {{ voting_start.strftime('%B %d, %Y at %I:%M %p UTC') }}
+                </span>
             {% else %}
                 Voting period has not been set
             {% endif %}
         {% elif voting_status == "ended" %}
-            Voting ended on {{ voting_end.strftime('%B %d, %Y at %I:%M %p UTC') }}
+            <span id="end-message" data-time="{{ voting_end.isoformat() }}">
+                Voting ended on {{ voting_end.strftime('%B %d, %Y at %I:%M %p UTC') }}
+            </span>
         {% else %}
-            Voting is open until {{ voting_end.strftime('%B %d, %Y at %I:%M %p UTC') }}
+            <span id="active-message" data-time="{{ voting_end.isoformat() }}">
+                Voting is open until {{ voting_end.strftime('%B %d, %Y at %I:%M %p UTC') }}
+            </span>
         {% endif %}
     </div>
 
@@ -81,6 +87,42 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Convert UTC times to local timezone
+    function formatLocalDateTime(utcString) {
+        const date = new Date(utcString);
+        return date.toLocaleDateString(undefined, {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        }) + ' at ' + date.toLocaleTimeString(undefined, {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+        });
+    }
+
+    // Update start message if present
+    const startSpan = document.getElementById('start-message');
+    if (startSpan) {
+        const startTime = startSpan.dataset.time;
+        startSpan.textContent = 'Voting will start on ' + formatLocalDateTime(startTime);
+    }
+
+    // Update end message if present
+    const endSpan = document.getElementById('end-message');
+    if (endSpan) {
+        const endTime = endSpan.dataset.time;
+        endSpan.textContent = 'Voting ended on ' + formatLocalDateTime(endTime);
+    }
+
+    // Update active message if present
+    const activeSpan = document.getElementById('active-message');
+    if (activeSpan) {
+        const endTime = activeSpan.dataset.time;
+        activeSpan.textContent = 'Voting is open until ' + formatLocalDateTime(endTime);
+    }
+
+    // Handle voting form submission
     const voteForms = document.querySelectorAll('.vote-form');
     const voteModal = new bootstrap.Modal(document.getElementById('voteModal'));
     const voteMessage = document.getElementById('voteMessage');
