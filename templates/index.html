@@ -42,61 +42,48 @@
 
     <h1 class="mb-4">Vote for Your Favorite Pinewood Derby Car!</h1>
 
-    <div class="card mb-4">
-        <div class="card-body">
-            <h5 class="card-title">Enter Your Voting Code</h5>
-            <div class="input-group mb-3">
-                <input type="text" id="vote-code" class="form-control" placeholder="Enter 5-digit code" maxlength="5" pattern="[0-9]{5}" required>
-                <button class="btn btn-outline-secondary" type="button" onclick="validateCode()">Validate Code</button>
-            </div>
-            <div id="code-status" class="alert alert-info d-none">
-                Enter your 5-digit voting code to vote
-            </div>
-        </div>
-    </div>
-
     <div class="row row-cols-1 row-cols-md-3 g-4">
         {% for car in cars %}
         <div class="col">
             <div class="card h-100">
-                <img src="{{ url_for('static', filename=car.image_path) }}" class="card-img-top" alt="Car {{ car.number }}">
+                {% if car.image_filename %}
+                <img src="{{ url_for('car_image', filename=car.image_filename) }}" class="card-img-top" alt="Car {{ car.number }}">
+                {% endif %}
                 <div class="card-body">
                     <h5 class="card-title">Car #{{ car.number }}</h5>
-                    <p class="card-text">Owner: {{ car.owner_name }}</p>
+                    <p class="card-text">{{ car.description }}</p>
                     {% if voting_status == "active" %}
-                    <button class="btn btn-primary vote-btn" data-car-id="{{ car.id }}" onclick="voteCar({{ car.id }})">
-                        Vote for this car
-                    </button>
-                    {% else %}
-                    <button class="btn btn-primary vote-btn" data-car-id="{{ car.id }}" disabled>
-                        Vote for this car
-                    </button>
+                    <form class="vote-form" data-car-id="{{ car.id }}">
+                        <div class="mb-3">
+                            <input type="text" class="form-control" name="vote_code" placeholder="Enter voting code" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Vote for this car</button>
+                    </form>
                     {% endif %}
                 </div>
             </div>
         </div>
         {% endfor %}
     </div>
-</div>
 
-<!-- Vote Success Modal -->
-<div class="modal fade" id="voteModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Vote Status</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p id="voteMessage"></p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+    <!-- Vote Confirmation Modal -->
+    <div class="modal fade" id="voteModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Vote Status</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="voteMessage"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
             </div>
         </div>
     </div>
 </div>
-
 {% endblock %}
 
 {% block scripts %}
@@ -150,40 +137,46 @@ document.addEventListener('DOMContentLoaded', function() {
         activeSpan.style.display = 'inline';
     }
 
-    // Handle voting form submission
-    const voteForms = document.querySelectorAll('.vote-form');
+    // Initialize Bootstrap modal
     const voteModal = new bootstrap.Modal(document.getElementById('voteModal'));
     const voteMessage = document.getElementById('voteMessage');
 
-    voteForms.forEach(form => {
-        form.addEventListener('submit', async function(e) {
+    // Handle voting form submission
+    document.querySelectorAll('.vote-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
             e.preventDefault();
+            
             const carId = this.dataset.carId;
-            const formData = new FormData();
-            formData.append('code', this.querySelector('input[name="vote_code"]').value);
-            formData.append('car_id', carId);
-
-            try {
-                const response = await fetch('/vote', {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await response.json();
-                
-                if (response.ok) {
+            const code = this.querySelector('input[name="vote_code"]').value;
+            
+            fetch('/vote', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `code=${encodeURIComponent(code)}&car_id=${encodeURIComponent(carId)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    voteMessage.textContent = data.error;
+                    voteMessage.className = 'text-danger';
+                } else {
                     voteMessage.textContent = 'Vote recorded successfully!';
                     voteMessage.className = 'text-success';
+                    // Reset the form
                     this.reset();
-                } else {
-                    voteMessage.textContent = data.error || 'An error occurred while voting';
-                    voteMessage.className = 'text-danger';
+                    // Reload the page after 1.5 seconds
+                    setTimeout(() => window.location.reload(), 1500);
                 }
-            } catch (error) {
-                voteMessage.textContent = 'An error occurred while voting';
+                voteModal.show();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                voteMessage.textContent = 'An error occurred while submitting your vote. Please try again.';
                 voteMessage.className = 'text-danger';
-            }
-            
-            voteModal.show();
+                voteModal.show();
+            });
         });
     });
 });
