@@ -12,15 +12,22 @@ import uuid
 # Initialize Flask app
 app = Flask(__name__)
 
-# Basic configuration
-app.config['SECRET_KEY'] = 'your-secret-key-here'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///instance/derby.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'static/uploads')
+# Get the absolute path to the instance folder
+instance_path = os.path.join(os.getcwd(), 'instance')
+os.makedirs(instance_path, exist_ok=True)
+os.chmod(instance_path, 0o777)
 
-# Ensure directories exist
-os.makedirs('instance', exist_ok=True)
+# Basic configuration
+app.config.update(
+    SECRET_KEY=os.environ.get('SECRET_KEY', 'your-secret-key-here'),
+    SQLALCHEMY_DATABASE_URI=f'sqlite:///{os.path.join(instance_path, "derby.db")}',
+    SQLALCHEMY_TRACK_MODIFICATIONS=False,
+    UPLOAD_FOLDER=os.path.join(os.getcwd(), 'static', 'uploads')
+)
+
+# Ensure upload directory exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+os.chmod(app.config['UPLOAD_FOLDER'], 0o777)
 
 # Initialize extensions
 db = SQLAlchemy(app)
@@ -188,16 +195,26 @@ def reset_votes():
 
 @app.route('/health')
 def health_check():
-    return jsonify({"status": "healthy"}), 200
+    try:
+        # Test database connection
+        db.session.execute('SELECT 1')
+        return jsonify({"status": "healthy", "database": "connected"}), 200
+    except Exception as e:
+        app.logger.error(f"Health check failed: {str(e)}")
+        return jsonify({"status": "unhealthy", "error": str(e)}), 500
 
 # Initialize database
 with app.app_context():
-    db.create_all()
-    # Create admin user if not exists
-    if not User.query.filter_by(username='admin').first():
-        admin = User(username='admin', password_hash=generate_password_hash('admin123'))
-        db.session.add(admin)
-        db.session.commit()
+    try:
+        db.create_all()
+        # Create admin user if not exists
+        if not User.query.filter_by(username='admin').first():
+            admin = User(username='admin', password_hash=generate_password_hash('admin123'))
+            db.session.add(admin)
+            db.session.commit()
+    except Exception as e:
+        app.logger.error(f"Database initialization error: {str(e)}")
+        raise
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))

@@ -4,18 +4,20 @@ build:
   commands:
     build:
       - pip install -r requirements.txt
+      # Create necessary directories with proper permissions
       - mkdir -p instance
       - mkdir -p static/uploads
       - chmod -R 777 instance
-      - chmod -R 777 static/uploads
+      - chmod -R 777 static
+      - chmod -R 777 .
 run:
   runtime-version: 3.12.0
-  command: gunicorn --bind 0.0.0.0:8080 --workers 1 --timeout 0 app:app
+  command: python3 -c "import os; os.makedirs('instance', exist_ok=True); os.chmod('instance', 0o777)" && gunicorn --bind 0.0.0.0:8080 --workers 1 --timeout 0 --log-level debug app:app
   network:
     port: 8080
     health-check:
       path: "/health"
-      interval: 10
+      interval: 5
       timeout: 5
       healthy-threshold: 2
       unhealthy-threshold: 2
@@ -24,9 +26,7 @@ run:
       value: app.py
     - name: FLASK_ENV
       value: production
-    - name: SECRET_KEY
-      value: "your-secure-secret-key-change-this"
     - name: PYTHONUNBUFFERED
       value: "1"
-    - name: GUNICORN_CMD_ARGS
-      value: "--access-logfile - --error-logfile -"
+    - name: SECRET_KEY
+      value: "your-secure-secret-key-change-this"
