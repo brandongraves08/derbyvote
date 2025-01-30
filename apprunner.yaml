@@ -4,11 +4,17 @@ build:
   commands:
     build:
       - pip install -r requirements.txt
+      - mkdir -p instance
+      - chmod 777 instance
 run:
   runtime-version: 3.12.0
-  command: gunicorn --bind 0.0.0.0:8080 app:app
+  command: gunicorn --bind 0.0.0.0:8080 --workers 2 --threads 4 --timeout 0 app:app
   network:
     port: 8080
   env:
     - name: FLASK_ENV
       value: production
+    - name: SECRET_KEY
+      value: "your-secure-secret-key-change-this"
+    - name: PYTHONUNBUFFERED
+      value: "1"
