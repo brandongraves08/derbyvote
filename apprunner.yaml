@@ -2,8 +2,15 @@ version: 1.0
 runtime: python3
 build:
   commands:
+    pre-build:
+      - curl -O https://www.python.org/ftp/python/3.12.1/Python-3.12.1.tgz
+      - tar xzf Python-3.12.1.tgz
+      - cd Python-3.12.1 && ./configure --enable-optimizations && make altinstall
+      - ln -sf /usr/local/bin/python3.12 /usr/local/bin/python3
+      - ln -sf /usr/local/bin/pip3.12 /usr/local/bin/pip3
     build:
-      - pip install -r requirements.txt
+      - pip3 install --upgrade pip
+      - pip3 install -r requirements.txt
       # Create necessary directories with proper permissions
       - mkdir -p instance
       - mkdir -p static/uploads
@@ -30,3 +37,5 @@ run:
       value: "1"
     - name: SECRET_KEY
       value: "your-secure-secret-key-change-this"
+    - name: PATH
+      value: "/usr/local/bin:${PATH}"

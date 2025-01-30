@@ -61,6 +61,10 @@ def generate_vote_code():
         if not VoteCode.query.filter_by(code=code).first():
             return code
 
+def safe_generate_password_hash(password):
+    """Generate password hash using a method available in Python 3.8"""
+    return generate_password_hash(password, method='pbkdf2:sha256:260000')
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -86,7 +90,8 @@ def login():
         if user and check_password_hash(user.password_hash, password):
             login_user(user)
             return redirect(url_for('admin'))
-        flash('Invalid username or password')
+        else:
+            flash('Invalid username or password')
     return render_template('login.html')
 
 @app.route('/logout')
@@ -209,7 +214,10 @@ with app.app_context():
         db.create_all()
         # Create admin user if not exists
         if not User.query.filter_by(username='admin').first():
-            admin = User(username='admin', password_hash=generate_password_hash('admin123'))
+            admin = User(
+                username='admin',
+                password_hash=safe_generate_password_hash('admin123')
+            )
             db.session.add(admin)
             db.session.commit()
     except Exception as e:
