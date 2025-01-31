@@ -6,7 +6,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import random
 import string
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid
 import qrcode
 from io import BytesIO
@@ -14,6 +14,13 @@ import base64
 
 # Initialize Flask app
 app = Flask(__name__)
+
+# Configure session
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-this')
+app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
+
 app.secret_key = 'your-secret-key-here'
 
 # Get the absolute path to the instance folder
@@ -23,7 +30,6 @@ os.chmod(instance_path, 0o777)
 
 # Basic configuration
 app.config.update(
-    SECRET_KEY=os.environ.get('SECRET_KEY', 'your-secret-key-here'),
     SQLALCHEMY_DATABASE_URI=f'sqlite:///{os.path.join(instance_path, "derby.db")}',
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
     UPLOAD_FOLDER=os.path.join(os.getcwd(), 'static', 'uploads')
@@ -253,9 +259,12 @@ def print_codes():
 
 @app.route('/validate_code', methods=['POST'])
 def validate_code():
+    print("Validate code endpoint called")  # Debug log
     code = request.form.get('code')
     if not code:
         return jsonify({'error': 'Missing vote code'}), 400
+
+    print(f"Validating code: {code}")  # Debug log
 
     # Check if voting is active
     settings = Settings.query.first()
@@ -273,16 +282,21 @@ def validate_code():
     # Find and validate the vote code
     vote_code = VoteCode.query.filter_by(code=code, is_used=False).first()
     if not vote_code:
+        print(f"Invalid code: {code}")  # Debug log
         return jsonify({'error': 'Invalid or already used vote code'}), 400
 
     # Store the validated code in session
     session['validated_code'] = code
+    print(f"Code stored in session: {session.get('validated_code')}")  # Debug log
+    
     return jsonify({'message': 'Code validated successfully'}), 200
 
 @app.route('/vote', methods=['POST'])
 def vote():
     # Get the validated code from session
     code = session.get('validated_code')
+    print(f"Retrieved code from session: {code}")  # Debug log
+    
     if not code:
         return jsonify({'error': 'Please enter your voting code first'}), 400
 
@@ -313,6 +327,7 @@ def vote():
     if not vote_code:
         # Clear the invalid code from session
         session.pop('validated_code', None)
+        print(f"Invalid code removed from session")  # Debug log
         return jsonify({'error': 'Invalid or already used vote code'}), 400
 
     try:
@@ -329,6 +344,7 @@ def vote():
         
         # Clear the used code from session
         session.pop('validated_code', None)
+        print(f"Used code removed from session")  # Debug log
         
         # Return updated vote count
         return jsonify({
@@ -338,7 +354,7 @@ def vote():
         
     except Exception as e:
         db.session.rollback()
-        print(f"Error recording vote: {str(e)}")
+        print(f"Error recording vote: {str(e)}")  # Debug log
         return jsonify({'error': 'Failed to record vote'}), 500
 
 @app.route('/results')

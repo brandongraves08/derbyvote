@@ -8,14 +8,24 @@
     <div class="alert {% if voting_status == 'active' %}alert-success{% elif voting_status == 'ended' %}alert-danger{% else %}alert-info{% endif %} text-center mb-4">
         {% if voting_status == "not_started" %}
             {% if voting_start %}
-                Voting starts {{ voting_start.strftime('%B %d, %Y at %I:%M %p') }}
+                <span id="voting-start-time" data-utc="{{ voting_start.isoformat() }}">
+                    Voting starts {{ voting_start.strftime('%B %d, %Y at %I:%M %p UTC') }}
+                </span>
             {% else %}
                 Voting period has not been set
             {% endif %}
         {% elif voting_status == "ended" %}
-            Voting has ended
+            <span id="voting-end-time" data-utc="{{ voting_end.isoformat() }}">
+                Voting ended {{ voting_end.strftime('%B %d, %Y at %I:%M %p UTC') }}
+            </span>
         {% else %}
             Voting is currently open!
+            <br>
+            <small>
+                <span id="voting-end-time" data-utc="{{ voting_end.isoformat() }}">
+                    Ends {{ voting_end.strftime('%B %d, %Y at %I:%M %p UTC') }}
+                </span>
+            </small>
         {% endif %}
     </div>
 
@@ -29,7 +39,7 @@
                     <div class="mb-3">
                         <input type="text" class="form-control" id="global-vote-code" placeholder="Enter your voting code">
                     </div>
-                    <button type="button" class="btn btn-primary w-100" onclick="validateCode()">Validate Code</button>
+                    <button type="button" id="validate-button" class="btn btn-primary w-100">Validate Code</button>
                 </div>
             </div>
         </div>
@@ -88,19 +98,79 @@
 
 {% block scripts %}
 <script>
-// Initialize vote modal
+// Initialize vote modal and setup
 let voteModal;
 document.addEventListener('DOMContentLoaded', function() {
     voteModal = new bootstrap.Modal(document.getElementById('voteModal'));
+    convertTimesToLocal();
+    
+    // Add event listener to validate button
+    const validateButton = document.getElementById('validate-button');
+    if (validateButton) {
+        validateButton.addEventListener('click', validateCode);
+    }
+    
+    // Auto-fill code from URL if present
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    if (code) {
+        const codeInput = document.getElementById('global-vote-code');
+        if (codeInput) {
+            codeInput.value = code;
+            validateCode();
+        }
+    }
 });
+
+// Function to convert UTC times to local timezone
+function convertTimesToLocal() {
+    document.querySelectorAll('[data-utc]').forEach(element => {
+        const utcTime = new Date(element.dataset.utc);
+        const localTime = utcTime.toLocaleString(undefined, {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+            timeZoneName: 'short'
+        });
+        if (element.id === 'voting-start-time') {
+            element.textContent = `Voting starts ${localTime}`;
+        } else if (element.id === 'voting-end-time') {
+            if (element.closest('.alert').classList.contains('alert-danger')) {
+                element.textContent = `Voting ended ${localTime}`;
+            } else {
+                element.textContent = `Ends ${localTime}`;
+            }
+        }
+    });
+}
 
 // Function to validate the voting code
 function validateCode() {
-    const code = document.getElementById('global-vote-code').value;
+    const codeInput = document.getElementById('global-vote-code');
+    if (!codeInput) {
+        console.error('Vote code input not found');
+        return;
+    }
+
+    const code = codeInput.value;
     if (!code) {
         showMessage('Please enter a voting code', 'error');
         return;
     }
+    
+    // Show loading state
+    const validateButton = document.getElementById('validate-button');
+    if (!validateButton) {
+        console.error('Validate button not found');
+        return;
+    }
+
+    const originalText = validateButton.textContent;
+    validateButton.disabled = true;
+    validateButton.textContent = 'Validating...';
     
     fetch('/validate_code', {
         method: 'POST',
@@ -123,6 +193,11 @@ function validateCode() {
         console.error('Error:', error);
         showMessage('An error occurred while validating your code. Please try again.', 'error');
         disableVoteButtons();
+    })
+    .finally(() => {
+        // Reset button state
+        validateButton.disabled = false;
+        validateButton.textContent = originalText;
     });
 }
 
@@ -149,7 +224,10 @@ function submitVote(carId) {
                 document.querySelector(`.vote-count[data-car-id="${carId}"]`).textContent = data.newVoteCount;
             }
             // Clear code and disable buttons
-            document.getElementById('global-vote-code').value = '';
+            const codeInput = document.getElementById('global-vote-code');
+            if (codeInput) {
+                codeInput.value = '';
+            }
             disableVoteButtons();
         }
     })
@@ -162,9 +240,15 @@ function submitVote(carId) {
 // Helper function to show messages
 function showMessage(message, type) {
     const messageElem = document.getElementById('voteMessage');
-    messageElem.textContent = message;
-    messageElem.className = type === 'error' ? 'text-danger' : 'text-success';
-    voteModal.show();
+    if (messageElem) {
+        messageElem.textContent = message;
+        messageElem.className = type === 'error' ? 'text-danger' : 'text-success';
+        if (voteModal) {
+            voteModal.show();
+        }
+    } else {
+        console.error('Message element not found');
+    }
 }
 
 // Helper function to enable vote buttons
@@ -179,14 +263,6 @@ function disableVoteButtons() {
     document.querySelectorAll('.vote-button').forEach(button => {
         button.disabled = true;
     });
-}
-
-// Auto-fill code from URL if present
-const urlParams = new URLSearchParams(window.location.search);
-const code = urlParams.get('code');
-if (code) {
-    document.getElementById('global-vote-code').value = code;
-    validateCode();
 }
 </script>
 {% endblock %}
