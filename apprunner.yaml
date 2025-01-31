@@ -4,6 +4,7 @@ build:
   commands:
     build:
       - pip install -r requirements.txt
+  runtime-version: 3.11
 run:
   runtime-version: 3.11
   command: python -m gunicorn --bind 0.0.0.0:8080 app:app
