@@ -392,13 +392,47 @@ def reset_votes():
     try:
         # Reset all car votes to 0
         Car.query.update({Car.votes: 0})
-        # Delete all vote codes
-        VoteCode.query.delete()
+        
+        # Mark all vote codes as used instead of deleting them
+        VoteCode.query.update({
+            VoteCode.is_used: True,
+            VoteCode.used_at: datetime.utcnow()
+        })
+        
+        # Reset voting period
+        settings = Settings.get_settings()
+        settings.voting_start = None
+        settings.voting_end = None
+        
         db.session.commit()
-        flash('All votes and voting codes have been reset successfully')
+        flash('All votes have been reset successfully. Cars and their images have been preserved.')
     except Exception as e:
         db.session.rollback()
         flash('Error resetting votes: ' + str(e))
+    
+    return redirect(url_for('admin'))
+
+@app.route('/admin/delete_car/<int:car_id>', methods=['POST'])
+@login_required
+def delete_car(car_id):
+    try:
+        car = Car.query.get_or_404(car_id)
+        
+        # Delete the image file if it exists
+        if car.image_filename:
+            image_path = os.path.join(app.config['UPLOAD_FOLDER'], car.image_filename)
+            if os.path.exists(image_path):
+                os.remove(image_path)
+        
+        # Delete the car from the database
+        db.session.delete(car)
+        db.session.commit()
+        
+        flash('Car deleted successfully')
+    except Exception as e:
+        db.session.rollback()
+        flash('Error deleting car: ' + str(e))
+    
     return redirect(url_for('admin'))
 
 @app.route('/health')

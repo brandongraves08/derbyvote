@@ -76,11 +76,20 @@
     <!-- Reset Votes -->
     <div class="card mb-4">
         <div class="card-header">
-            <h2 class="h5 mb-0">Reset Votes</h2>
+            <h2 class="h5 mb-0">Reset Voting</h2>
         </div>
         <div class="card-body">
-            <form action="{{ url_for('reset_votes') }}" method="POST" onsubmit="return confirm('Are you sure you want to reset all votes? This cannot be undone.');">
-                <button type="submit" class="btn btn-danger">Reset All Votes</button>
+            <p class="text-muted mb-3">
+                This will:
+                <ul>
+                    <li>Reset all vote counts to zero</li>
+                    <li>Mark all voting codes as used</li>
+                    <li>Clear the voting period</li>
+                    <li><strong>Cars and their images will be preserved</strong></li>
+                </ul>
+            </p>
+            <form action="{{ url_for('reset_votes') }}" method="POST" onsubmit="return confirm('Are you sure you want to reset all votes? Cars and their images will be preserved, but all votes will be cleared.');">
+                <button type="submit" class="btn btn-warning">Reset All Votes</button>
             </form>
         </div>
     </div>
@@ -99,6 +108,7 @@
                             <th>Description</th>
                             <th>Photo</th>
                             <th>Votes</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -116,6 +126,16 @@
                                 {% endif %}
                             </td>
                             <td>{{ car.votes }}</td>
+                            <td>
+                                <form action="{{ url_for('delete_car', car_id=car.id) }}" 
+                                      method="POST" 
+                                      style="display: inline;"
+                                      onsubmit="return confirm('Are you sure you want to delete Car #{{ car.number }}? This cannot be undone.');">
+                                    <button type="submit" class="btn btn-danger btn-sm">
+                                        <i class="bi bi-trash"></i> Delete
+                                    </button>
+                                </form>
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
