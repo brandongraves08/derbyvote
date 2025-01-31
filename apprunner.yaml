@@ -14,7 +14,7 @@ build:
       - chmod +x start.sh
 run:
   runtime-version: 3.11
-  command: ./start.sh
+  command: /bin/bash start.sh
   network:
     port: 8080
   env:
@@ -24,12 +24,8 @@ run:
       value: production
     - name: PYTHONUNBUFFERED
       value: "1"
-    - name: PATH
-      value: /usr/local/bin:/usr/bin:/root/.local/bin:$PATH
     - name: PYTHONPATH
       value: /app
-    - name: HOME
-      value: /root
     - name: DATABASE_URL
       value: sqlite:///instance/derby.db
     - name: UPLOAD_FOLDER
