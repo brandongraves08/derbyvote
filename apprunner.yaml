@@ -4,14 +4,14 @@ build:
   commands:
     build:
       - python3 -m pip install --upgrade pip
-      - pip3 install -r requirements.txt --target=/var/task/python
+      - pip3 install -r requirements.txt
       - mkdir -p instance
       - chmod 777 instance
       - mkdir -p static/uploads
       - chmod 777 static/uploads
 run:
   runtime-version: 3.11
-  command: /var/task/python/bin/gunicorn --bind 0.0.0.0:8080 app:app
+  command: python3 -m gunicorn --bind 0.0.0.0:8080 app:app
   network:
     port: 8080
   env:
@@ -20,7 +20,7 @@ run:
     - name: FLASK_ENV
       value: production
     - name: PYTHONPATH
-      value: /var/task/python
+      value: /var/task
     - name: DATABASE_URL
       value: sqlite:///instance/derby.db
     - name: UPLOAD_FOLDER
