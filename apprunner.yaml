@@ -2,19 +2,15 @@ version: 1.0
 runtime: python3
 build:
   commands:
-    pre-build:
-      - /usr/bin/python3 -m ensurepip --upgrade
-      - /usr/bin/python3 -m pip install --upgrade pip
     build:
-      - /usr/bin/python3 -m pip install -r requirements.txt
+      - pip3 install -r requirements.txt
       - mkdir -p instance
       - chmod 777 instance
       - mkdir -p static/uploads
       - chmod 777 static/uploads
-      - chmod +x start.sh
 run:
   runtime-version: 3.11
-  command: /bin/bash start.sh
+  command: gunicorn app:app
   network:
     port: 8080
   env:
