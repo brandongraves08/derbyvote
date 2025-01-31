@@ -33,4 +33,4 @@ run:
     - name: SECRET_KEY
       value-from: /pinewood-derby/secret-key
   instance:
-    instance-role-arn: arn:aws:iam::YOUR_ACCOUNT_ID:role/service-role/AppRunnerECRAccessRole
+    instance-role-arn: arn:aws:iam::967153746046:role/AppRunner
