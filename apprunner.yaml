@@ -3,7 +3,7 @@ runtime: python3
 build:
   commands:
     build:
-      - pip3 install gunicorn==21.2.0
+      - python3 -m pip install --upgrade pip
       - pip3 install -r requirements.txt
       - mkdir -p instance
       - chmod 777 instance
@@ -11,7 +11,7 @@ build:
       - chmod 777 static/uploads
 run:
   runtime-version: 3.11
-  command: gunicorn app:app
+  command: python3 -m gunicorn --bind 0.0.0.0:8080 app:app
   network:
     port: 8080
   env:
