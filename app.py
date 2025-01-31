@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -14,6 +14,7 @@ import base64
 
 # Initialize Flask app
 app = Flask(__name__)
+app.secret_key = 'your-secret-key-here'
 
 # Get the absolute path to the instance folder
 instance_path = os.path.join(os.getcwd(), 'instance')
@@ -250,8 +251,12 @@ def print_codes():
     
     return render_template('print_codes.html', unused_codes=unused_codes, used_codes=used_codes)
 
-@app.route('/vote', methods=['POST'])
-def vote():
+@app.route('/validate_code', methods=['POST'])
+def validate_code():
+    code = request.form.get('code')
+    if not code:
+        return jsonify({'error': 'Missing vote code'}), 400
+
     # Check if voting is active
     settings = Settings.query.first()
     now = datetime.utcnow()
@@ -265,12 +270,38 @@ def vote():
     if now > settings.voting_end:
         return jsonify({'error': 'Voting has ended'}), 400
 
-    # Get the vote code and car ID from the form
-    code = request.form.get('code')
+    # Find and validate the vote code
+    vote_code = VoteCode.query.filter_by(code=code, is_used=False).first()
+    if not vote_code:
+        return jsonify({'error': 'Invalid or already used vote code'}), 400
+
+    # Store the validated code in session
+    session['validated_code'] = code
+    return jsonify({'message': 'Code validated successfully'}), 200
+
+@app.route('/vote', methods=['POST'])
+def vote():
+    # Get the validated code from session
+    code = session.get('validated_code')
+    if not code:
+        return jsonify({'error': 'Please enter your voting code first'}), 400
+
     car_id = request.form.get('car_id')
+    if not car_id:
+        return jsonify({'error': 'Missing car ID'}), 400
+
+    # Check if voting is active
+    settings = Settings.query.first()
+    now = datetime.utcnow()
     
-    if not code or not car_id:
-        return jsonify({'error': 'Missing vote code or car ID'}), 400
+    if not settings or not settings.voting_start or not settings.voting_end:
+        return jsonify({'error': 'Voting period has not been set'}), 400
+    
+    if now < settings.voting_start:
+        return jsonify({'error': 'Voting has not started yet'}), 400
+    
+    if now > settings.voting_end:
+        return jsonify({'error': 'Voting has ended'}), 400
 
     # Validate the car exists
     car = Car.query.get(car_id)
@@ -280,6 +311,8 @@ def vote():
     # Find and validate the vote code
     vote_code = VoteCode.query.filter_by(code=code, is_used=False).first()
     if not vote_code:
+        # Clear the invalid code from session
+        session.pop('validated_code', None)
         return jsonify({'error': 'Invalid or already used vote code'}), 400
 
     try:
@@ -294,7 +327,14 @@ def vote():
         # Save changes
         db.session.commit()
         
-        return jsonify({'message': 'Vote recorded successfully'}), 200
+        # Clear the used code from session
+        session.pop('validated_code', None)
+        
+        # Return updated vote count
+        return jsonify({
+            'message': 'Vote recorded successfully',
+            'newVoteCount': car.votes
+        }), 200
         
     except Exception as e:
         db.session.rollback()

@@ -29,7 +29,7 @@
                     <div class="mb-3">
                         <input type="text" class="form-control" id="global-vote-code" placeholder="Enter your voting code">
                     </div>
-                    <button type="button" class="btn btn-primary w-100" onclick="applyCodeToAll()">Apply Code to All Cars</button>
+                    <button type="button" class="btn btn-primary w-100" onclick="validateCode()">Validate Code</button>
                 </div>
             </div>
         </div>
@@ -53,13 +53,12 @@
                     <p class="card-text">{{ car.description }}</p>
                     {% endif %}
                     
+                    <div class="text-center mb-3">
+                        <h6>Votes: <span class="vote-count" data-car-id="{{ car.id }}">{{ car.votes }}</span></h6>
+                    </div>
+                    
                     {% if voting_status == "active" %}
-                    <form class="vote-form mt-3" onsubmit="submitVote(event, {{ car.id }})">
-                        <div class="mb-3">
-                            <input type="text" class="form-control vote-code-input" placeholder="Enter voting code">
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100">Vote for This Car</button>
-                    </form>
+                    <button onclick="submitVote({{ car.id }})" class="btn btn-primary w-100 vote-button" disabled>Vote for This Car</button>
                     {% endif %}
                 </div>
             </div>
@@ -95,50 +94,90 @@ document.addEventListener('DOMContentLoaded', function() {
     voteModal = new bootstrap.Modal(document.getElementById('voteModal'));
 });
 
-// Function to apply code to all vote inputs
-function applyCodeToAll() {
+// Function to validate the voting code
+function validateCode() {
     const code = document.getElementById('global-vote-code').value;
-    document.querySelectorAll('.vote-code-input').forEach(input => {
-        input.value = code;
+    if (!code) {
+        showMessage('Please enter a voting code', 'error');
+        return;
+    }
+    
+    fetch('/validate_code', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `code=${encodeURIComponent(code)}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            showMessage(data.error, 'error');
+            disableVoteButtons();
+        } else {
+            showMessage('Code validated! You can now vote for a car.', 'success');
+            enableVoteButtons();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showMessage('An error occurred while validating your code. Please try again.', 'error');
+        disableVoteButtons();
     });
 }
 
 // Function to submit a vote
-function submitVote(event, carId) {
-    event.preventDefault();
-    const form = event.target;
-    const code = form.querySelector('.vote-code-input').value;
-    
+function submitVote(carId) {
     fetch('/vote', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: `code=${encodeURIComponent(code)}&car_id=${encodeURIComponent(carId)}`
+        body: `car_id=${encodeURIComponent(carId)}`
     })
     .then(response => response.json())
     .then(data => {
-        const messageElem = document.getElementById('voteMessage');
         if (data.error) {
-            messageElem.textContent = data.error;
-            messageElem.className = 'text-danger';
+            showMessage(data.error, 'error');
+            if (data.error === 'Please enter your voting code first') {
+                disableVoteButtons();
+            }
         } else {
-            messageElem.textContent = 'Vote recorded successfully!';
-            messageElem.className = 'text-success';
-            // Clear all forms
+            showMessage('Vote recorded successfully!', 'success');
+            // Update vote count
+            if (data.newVoteCount !== undefined) {
+                document.querySelector(`.vote-count[data-car-id="${carId}"]`).textContent = data.newVoteCount;
+            }
+            // Clear code and disable buttons
             document.getElementById('global-vote-code').value = '';
-            document.querySelectorAll('.vote-code-input').forEach(input => input.value = '');
-            // Reload after success
-            setTimeout(() => window.location.reload(), 1500);
+            disableVoteButtons();
         }
-        voteModal.show();
     })
     .catch(error => {
         console.error('Error:', error);
-        const messageElem = document.getElementById('voteMessage');
-        messageElem.textContent = 'An error occurred while submitting your vote. Please try again.';
-        messageElem.className = 'text-danger';
-        voteModal.show();
+        showMessage('An error occurred while submitting your vote. Please try again.', 'error');
+    });
+}
+
+// Helper function to show messages
+function showMessage(message, type) {
+    const messageElem = document.getElementById('voteMessage');
+    messageElem.textContent = message;
+    messageElem.className = type === 'error' ? 'text-danger' : 'text-success';
+    voteModal.show();
+}
+
+// Helper function to enable vote buttons
+function enableVoteButtons() {
+    document.querySelectorAll('.vote-button').forEach(button => {
+        button.disabled = false;
+    });
+}
+
+// Helper function to disable vote buttons
+function disableVoteButtons() {
+    document.querySelectorAll('.vote-button').forEach(button => {
+        button.disabled = true;
     });
 }
 
@@ -147,7 +186,7 @@ const urlParams = new URLSearchParams(window.location.search);
 const code = urlParams.get('code');
 if (code) {
     document.getElementById('global-vote-code').value = code;
-    applyCodeToAll();
+    validateCode();
 }
 </script>
 {% endblock %}
