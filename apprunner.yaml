@@ -3,9 +3,7 @@ runtime: python3
 build:
   commands:
     build:
-      - yum install -y python3-pip
-      - pip3 install --upgrade pip
-      - pip3 install gunicorn --target=/usr/local/lib/python3.11/site-packages
+      - pip3 install gunicorn==21.2.0
       - pip3 install -r requirements.txt
       - mkdir -p instance
       - chmod 777 instance
@@ -21,10 +19,6 @@ run:
       value: app.py
     - name: FLASK_ENV
       value: production
-    - name: PATH
-      value: /usr/local/bin:/usr/bin:/root/.local/bin:$PATH
-    - name: PYTHONPATH
-      value: /usr/local/lib/python3.11/site-packages:/app
     - name: DATABASE_URL
       value: sqlite:///instance/derby.db
     - name: UPLOAD_FOLDER
