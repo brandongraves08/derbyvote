@@ -147,8 +147,21 @@ function convertTimesToLocal() {
     });
 }
 
+// Function to handle fetch responses
+async function handleFetchResponse(response) {
+    if (!response.ok) {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            const data = await response.json();
+            throw new Error(data.error || 'Server error');
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return response.json();
+}
+
 // Function to validate the voting code
-function validateCode() {
+async function validateCode() {
     const codeInput = document.getElementById('global-vote-code');
     if (!codeInput) {
         console.error('Vote code input not found');
@@ -172,15 +185,16 @@ function validateCode() {
     validateButton.disabled = true;
     validateButton.textContent = 'Validating...';
     
-    fetch('/validate_code', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: `code=${encodeURIComponent(code)}`
-    })
-    .then(response => response.json())
-    .then(data => {
+    try {
+        const response = await fetch('/validate_code', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `code=${encodeURIComponent(code)}`
+        });
+        
+        const data = await handleFetchResponse(response);
         if (data.error) {
             showMessage(data.error, 'error');
             disableVoteButtons();
@@ -188,30 +202,29 @@ function validateCode() {
             showMessage('Code validated! You can now vote for a car.', 'success');
             enableVoteButtons();
         }
-    })
-    .catch(error => {
+    } catch (error) {
         console.error('Error:', error);
-        showMessage('An error occurred while validating your code. Please try again.', 'error');
+        showMessage(error.message || 'An error occurred while validating your code. Please try again.', 'error');
         disableVoteButtons();
-    })
-    .finally(() => {
+    } finally {
         // Reset button state
         validateButton.disabled = false;
         validateButton.textContent = originalText;
-    });
+    }
 }
 
 // Function to submit a vote
-function submitVote(carId) {
-    fetch('/vote', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: `car_id=${encodeURIComponent(carId)}`
-    })
-    .then(response => response.json())
-    .then(data => {
+async function submitVote(carId) {
+    try {
+        const response = await fetch('/vote', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `car_id=${encodeURIComponent(carId)}`
+        });
+        
+        const data = await handleFetchResponse(response);
         if (data.error) {
             showMessage(data.error, 'error');
             if (data.error === 'Please enter your voting code first') {
@@ -221,7 +234,10 @@ function submitVote(carId) {
             showMessage('Vote recorded successfully!', 'success');
             // Update vote count
             if (data.newVoteCount !== undefined) {
-                document.querySelector(`.vote-count[data-car-id="${carId}"]`).textContent = data.newVoteCount;
+                const voteCountElem = document.querySelector(`.vote-count[data-car-id="${carId}"]`);
+                if (voteCountElem) {
+                    voteCountElem.textContent = data.newVoteCount;
+                }
             }
             // Clear code and disable buttons
             const codeInput = document.getElementById('global-vote-code');
@@ -230,11 +246,10 @@ function submitVote(carId) {
             }
             disableVoteButtons();
         }
-    })
-    .catch(error => {
+    } catch (error) {
         console.error('Error:', error);
-        showMessage('An error occurred while submitting your vote. Please try again.', 'error');
-    });
+        showMessage(error.message || 'An error occurred while submitting your vote. Please try again.', 'error');
+    }
 }
 
 // Helper function to show messages
@@ -248,6 +263,7 @@ function showMessage(message, type) {
         }
     } else {
         console.error('Message element not found');
+        alert(message); // Fallback if modal is not available
     }
 }
 
