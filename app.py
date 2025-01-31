@@ -370,10 +370,10 @@ def vote():
         session.pop('validated_code', None)
         print(f"Used code removed from session")  # Debug log
         
-        # Return updated vote count
+        # Return success with redirect URL
         return jsonify({
             'message': 'Vote recorded successfully',
-            'newVoteCount': car.votes
+            'redirect': url_for('results')
         }), 200
         
     except Exception as e:

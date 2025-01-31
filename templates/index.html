@@ -224,42 +224,43 @@ async function validateCode() {
 }
 
 // Function to submit a vote
-async function submitVote(carId) {
-    try {
-        const response = await fetch('/vote', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: `car_id=${encodeURIComponent(carId)}`
-        });
-        
-        const data = await handleFetchResponse(response);
+function submitVote(carId) {
+    const submitButton = document.querySelector(`button[onclick="submitVote(${carId})"]`);
+    const originalText = submitButton.innerHTML;
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Voting...';
+    
+    fetch('/vote', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `car_id=${carId}`
+    })
+    .then(response => response.json())
+    .then(data => {
         if (data.error) {
-            showMessage(data.error, 'error');
-            if (data.error === 'Please enter your voting code first') {
-                disableVoteButtons();
-            }
+            showError(data.error);
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalText;
         } else {
-            showMessage('Vote recorded successfully!', 'success');
-            // Update vote count
-            if (data.newVoteCount !== undefined) {
-                const voteCountElem = document.querySelector(`.vote-count[data-car-id="${carId}"]`);
-                if (voteCountElem) {
-                    voteCountElem.textContent = data.newVoteCount;
-                }
+            // Show success message
+            showSuccess('Vote recorded successfully! Redirecting to results...');
+            
+            // Redirect to results page
+            if (data.redirect) {
+                setTimeout(() => {
+                    window.location.href = data.redirect;
+                }, 1500); // Wait 1.5 seconds before redirecting
             }
-            // Clear code and disable buttons
-            const codeInput = document.getElementById('global-vote-code');
-            if (codeInput) {
-                codeInput.value = '';
-            }
-            disableVoteButtons();
         }
-    } catch (error) {
+    })
+    .catch(error => {
         console.error('Error:', error);
-        showMessage(error.message || 'An error occurred while submitting your vote. Please try again.', 'error');
-    }
+        showError('An error occurred while submitting your vote.');
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalText;
+    });
 }
 
 // Helper function to show messages

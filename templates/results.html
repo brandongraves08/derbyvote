@@ -1,32 +1,51 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1 class="mb-4">Voting Results</h1>
+<div class="container mt-4">
+    <h1 class="text-center mb-4">Voting Results</h1>
 
-<div class="row">
-    {% for car in cars %}
-    <div class="col-md-4 mb-4">
-        <div class="card h-100 {% if loop.first %}border-success{% endif %}">
-            {% if loop.first %}
-            <div class="card-header bg-success text-white">
-                <h5 class="mb-0">Current Leader!</h5>
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        {% for car in cars %}
+        <div class="col">
+            <div class="card h-100 {% if loop.first %}border-success{% endif %}">
+                {% if loop.first %}
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0 text-center">Current Leader! 🏆</h5>
+                </div>
+                {% endif %}
+                {% if car.image_filename %}
+                <img src="{{ url_for('car_image', filename=car.image_filename) }}" 
+                     class="card-img-top" 
+                     alt="Car {{ car.number }}"
+                     style="object-fit: cover; height: 200px;">
+                {% else %}
+                <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                    <span class="text-muted">No image available</span>
+                </div>
+                {% endif %}
+                <div class="card-body">
+                    <h5 class="card-title">Car #{{ car.number }}</h5>
+                    {% if car.description %}
+                    <p class="card-text">{{ car.description }}</p>
+                    {% endif %}
+                    <div class="text-center">
+                        <h4 class="mb-0 {% if loop.first %}text-success{% endif %}">
+                            {{ car.votes }} vote{% if car.votes != 1 %}s{% endif %}
+                        </h4>
+                    </div>
+                </div>
+                {% if loop.first and car.votes > 0 %}
+                <div class="card-footer bg-success text-white text-center">
+                    <small>Leading by {{ car.votes - (cars[1].votes if cars|length > 1 else 0) }} vote{% if (car.votes - (cars[1].votes if cars|length > 1 else 0)) != 1 %}s{% endif %}!</small>
+                </div>
+                {% endif %}
             </div>
-            {% endif %}
-            <img src="{{ url_for('static', filename=car.image_path) }}" class="card-img-top" alt="Car {{ car.number }}">
-            <div class="card-body">
-                <h5 class="card-title">Car #{{ car.number }}</h5>
-                <p class="card-text">Owner: {{ car.owner_name }}</p>
-                <p class="card-text">
-                    <strong>Total Votes: {{ car.votes }}</strong>
-                </p>
-            </div>
-            {% if loop.first %}
-            <div class="card-footer bg-success text-white">
-                <small>Leading with {{ car.votes }} votes!</small>
-            </div>
-            {% endif %}
         </div>
+        {% endfor %}
     </div>
-    {% endfor %}
+
+    <div class="text-center mt-4">
+        <a href="{{ url_for('index') }}" class="btn btn-primary">Back to Voting</a>
+    </div>
 </div>
 {% endblock %}
