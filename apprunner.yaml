@@ -7,7 +7,7 @@ build:
   runtime-version: 3.11
 run:
   runtime-version: 3.11
-  command: python -m gunicorn --bind 0.0.0.0:8080 app:app
+  command: python3 -m gunicorn --bind 0.0.0.0:8080 app:app
   network:
     port: 8080
   env:
