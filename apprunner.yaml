@@ -7,6 +7,10 @@ build:
       - /usr/local/bin/pip3 install --upgrade pip
     build:
       - /usr/local/bin/pip3 install -r requirements.txt
+      - mkdir -p instance
+      - chmod 777 instance
+      - mkdir -p static/uploads
+      - chmod 777 static/uploads
 run:
   runtime-version: 3.11
   command: /usr/bin/python3 -m gunicorn --bind 0.0.0.0:8080 --workers 2 --threads 4 --timeout 120 app:app
@@ -21,6 +25,12 @@ run:
       value: "1"
     - name: PATH
       value: /usr/local/bin:/usr/bin:$PATH
+    - name: DATABASE_URL
+      value: sqlite:///instance/derby.db
+    - name: UPLOAD_FOLDER
+      value: static/uploads
   secrets:
     - name: SECRET_KEY
       value-from: /pinewood-derby/secret-key
+  instance:
+    instance-role-arn: arn:aws:iam::YOUR_ACCOUNT_ID:role/service-role/AppRunnerECRAccessRole
