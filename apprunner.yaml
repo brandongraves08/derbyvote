@@ -3,7 +3,7 @@ runtime: python3
 build:
   commands:
     build:
-      - pip3 install -r requirements.txt
+      - pip3 install -r requirements.txt --no-cache-dir
       - mkdir -p instance
       - chmod 777 instance
       - mkdir -p static/uploads
@@ -18,6 +18,8 @@ run:
       value: app.py
     - name: FLASK_ENV
       value: production
+    - name: PATH
+      value: /usr/local/bin:/usr/bin:/root/.local/bin:$PATH
     - name: DATABASE_URL
       value: sqlite:///instance/derby.db
     - name: UPLOAD_FOLDER
