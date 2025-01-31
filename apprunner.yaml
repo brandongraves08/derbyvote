@@ -4,17 +4,17 @@ build:
   commands:
     pre-build:
       - /usr/bin/python3 -m ensurepip --upgrade
-      - /usr/local/bin/pip3 install --upgrade pip
+      - /usr/bin/python3 -m pip install --upgrade pip
     build:
-      - /usr/local/bin/pip3 install -r requirements.txt
-      - /usr/local/bin/pip3 install gunicorn
+      - /usr/bin/python3 -m pip install -r requirements.txt
+      - /usr/bin/python3 -m pip install gunicorn
       - mkdir -p instance
       - chmod 777 instance
       - mkdir -p static/uploads
       - chmod 777 static/uploads
 run:
   runtime-version: 3.11
-  command: /usr/local/bin/gunicorn --bind 0.0.0.0:8080 --workers 2 --threads 4 --timeout 120 app:app
+  command: python3 -m gunicorn --bind 0.0.0.0:8080 --workers 2 --threads 4 --timeout 120 app:app
   network:
     port: 8080
   env:
@@ -25,7 +25,9 @@ run:
     - name: PYTHONUNBUFFERED
       value: "1"
     - name: PATH
-      value: /usr/local/bin:/usr/bin:$PATH
+      value: /usr/local/bin:/usr/bin:/root/.local/bin:$PATH
+    - name: PYTHONPATH
+      value: /app
     - name: DATABASE_URL
       value: sqlite:///instance/derby.db
     - name: UPLOAD_FOLDER
