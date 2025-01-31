@@ -97,7 +97,7 @@ def load_user(user_id):
 @app.route('/')
 def index():
     cars = Car.query.order_by(Car.number).all()
-    settings = Settings.query.first()
+    settings = Settings.get_settings()
     
     voting_status = "not_started"
     voting_start = None
@@ -127,21 +127,38 @@ def index():
 def admin():
     if request.method == 'POST':
         if 'voting_start' in request.form:
-            # Handle voting period settings
             try:
-                start_str = request.form['voting_start']
-                end_str = request.form['voting_end']
+                start_str = request.form.get('voting_start', '')
+                end_str = request.form.get('voting_end', '')
                 
                 settings = Settings.get_settings()
-                settings.voting_start = datetime.fromisoformat(start_str) if start_str else None
-                settings.voting_end = datetime.fromisoformat(end_str) if end_str else None
+                
+                if start_str:
+                    # Parse the ISO format string and convert to UTC
+                    start_dt = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
+                    settings.voting_start = start_dt
+                else:
+                    settings.voting_start = None
+                    
+                if end_str:
+                    # Parse the ISO format string and convert to UTC
+                    end_dt = datetime.fromisoformat(end_str.replace('Z', '+00:00'))
+                    settings.voting_end = end_dt
+                else:
+                    settings.voting_end = None
+                
                 db.session.commit()
                 flash('Voting period updated successfully!')
-            except ValueError:
-                flash('Invalid date format. Please use YYYY-MM-DDTHH:MM format.')
+                
+            except ValueError as e:
+                print(f"Error setting voting period: {str(e)}")
+                flash('Invalid date format. Please use the datetime picker to select dates.')
+            except Exception as e:
+                print(f"Unexpected error setting voting period: {str(e)}")
+                flash('An error occurred while updating the voting period.')
     
-    cars = Car.query.all()
     settings = Settings.get_settings()
+    cars = Car.query.all()
     return render_template('admin.html', 
                          cars=cars,
                          voting_start=settings.voting_start,

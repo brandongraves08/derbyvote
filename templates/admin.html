@@ -135,13 +135,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const endInput = document.getElementById('voting_end');
     
     if (startInput.value) {
-        const startDate = new Date(startInput.value + 'Z'); // Add Z to indicate UTC
-        startInput.value = startDate.toISOString().slice(0, 16); // Format as YYYY-MM-DDTHH:mm
+        const startDate = new Date(startInput.value + ':00Z'); // Add seconds and Z to indicate UTC
+        startInput.value = new Date(startDate.getTime() - startDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
     }
     
     if (endInput.value) {
-        const endDate = new Date(endInput.value + 'Z'); // Add Z to indicate UTC
-        endInput.value = endDate.toISOString().slice(0, 16); // Format as YYYY-MM-DDTHH:mm
+        const endDate = new Date(endInput.value + ':00Z'); // Add seconds and Z to indicate UTC
+        endInput.value = new Date(endDate.getTime() - endDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
     }
     
     // Convert local time to UTC before submitting
@@ -153,14 +153,16 @@ document.addEventListener('DOMContentLoaded', function() {
         // Convert local times to UTC
         if (startInput.value) {
             const localStart = new Date(startInput.value);
-            formData.append('voting_start', localStart.toISOString());
+            const utcStart = new Date(localStart.getTime() + localStart.getTimezoneOffset() * 60000);
+            formData.append('voting_start', utcStart.toISOString());
         } else {
             formData.append('voting_start', '');
         }
         
         if (endInput.value) {
             const localEnd = new Date(endInput.value);
-            formData.append('voting_end', localEnd.toISOString());
+            const utcEnd = new Date(localEnd.getTime() + localEnd.getTimezoneOffset() * 60000);
+            formData.append('voting_end', utcEnd.toISOString());
         } else {
             formData.append('voting_end', '');
         }
@@ -172,7 +174,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }).then(response => {
             if (response.ok) {
                 window.location.reload();
+            } else {
+                console.error('Error updating voting period');
+                alert('Error updating voting period. Please check the console for details.');
             }
+        }).catch(error => {
+            console.error('Error:', error);
+            alert('Error updating voting period. Please check the console for details.');
         });
     });
 });
