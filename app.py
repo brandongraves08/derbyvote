@@ -96,24 +96,31 @@ def load_user(user_id):
 
 @app.route('/')
 def index():
-    cars = Car.query.all()
-    settings = Settings.get_settings()
-    now = datetime.utcnow()
+    cars = Car.query.order_by(Car.number).all()
+    settings = Settings.query.first()
     
     voting_status = "not_started"
+    voting_start = None
+    voting_end = None
+    
     if settings and settings.voting_start and settings.voting_end:
-        if now < settings.voting_start:
+        now = datetime.utcnow()
+        voting_start = settings.voting_start
+        voting_end = settings.voting_end
+        
+        if now < voting_start:
             voting_status = "not_started"
-        elif now > settings.voting_end:
+        elif now > voting_end:
             voting_status = "ended"
         else:
             voting_status = "active"
     
     return render_template('index.html', 
-                         cars=cars, 
-                         voting_status=voting_status,
-                         voting_start=settings.voting_start if settings else None,
-                         voting_end=settings.voting_end if settings else None)
+        cars=cars, 
+        voting_status=voting_status,
+        voting_start=voting_start,
+        voting_end=voting_end
+    )
 
 @app.route('/admin', methods=['GET', 'POST'])
 @login_required
