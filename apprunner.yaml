@@ -7,13 +7,14 @@ build:
       - /usr/local/bin/pip3 install --upgrade pip
     build:
       - /usr/local/bin/pip3 install -r requirements.txt
+      - /usr/local/bin/pip3 install gunicorn
       - mkdir -p instance
       - chmod 777 instance
       - mkdir -p static/uploads
       - chmod 777 static/uploads
 run:
   runtime-version: 3.11
-  command: /usr/bin/python3 -m gunicorn --bind 0.0.0.0:8080 --workers 2 --threads 4 --timeout 120 app:app
+  command: /usr/local/bin/gunicorn --bind 0.0.0.0:8080 --workers 2 --threads 4 --timeout 120 app:app
   network:
     port: 8080
   env:
