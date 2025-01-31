@@ -3,7 +3,10 @@ runtime: python3
 build:
   commands:
     build:
-      - pip3 install -r requirements.txt --no-cache-dir
+      - yum install -y python3-pip
+      - pip3 install --upgrade pip
+      - pip3 install gunicorn --target=/usr/local/lib/python3.11/site-packages
+      - pip3 install -r requirements.txt
       - mkdir -p instance
       - chmod 777 instance
       - mkdir -p static/uploads
@@ -20,6 +23,8 @@ run:
       value: production
     - name: PATH
       value: /usr/local/bin:/usr/bin:/root/.local/bin:$PATH
+    - name: PYTHONPATH
+      value: /usr/local/lib/python3.11/site-packages:/app
     - name: DATABASE_URL
       value: sqlite:///instance/derby.db
     - name: UPLOAD_FOLDER
